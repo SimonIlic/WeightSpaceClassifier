@@ -4,7 +4,7 @@ fashion_mnist/
 mnist/
 svhn_cropped/
 
-# ignore mac-OS DS_Store files
+# ignore MacOS DS_Store files
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
