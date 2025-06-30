@@ -1,3 +1,7 @@
+*.csv
+
+reconstruct_network_old.py
+
 # ignore data folder
 cifar10/
 fashion_mnist/
