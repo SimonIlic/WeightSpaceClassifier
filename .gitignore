@@ -1,3 +1,5 @@
+*.ipynb
+
 *.csv
 
 reconstruct_network_old.py
