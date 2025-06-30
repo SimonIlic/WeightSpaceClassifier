@@ -4,6 +4,9 @@ fashion_mnist/
 mnist/
 svhn_cropped/
 
+# ignore mac-OS DS_Store files
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
