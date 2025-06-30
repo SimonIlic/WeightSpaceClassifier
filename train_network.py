@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# FROM: https://github.com/google-research/google-research/blob/master/dnn_predict_accuracy/train_network.py
+
 """Train DNN of a specified architecture on a specified data set."""
 
 from __future__ import absolute_import
