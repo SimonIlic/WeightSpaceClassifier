@@ -1,9 +1,9 @@
 from math import prod
-
-import notebook
 from train_network import build_cnn
+
+# typing imports
 import tensorflow as tf
-from tensorflow.keras.datasets import mnist
+import numpy as np
 
 
 SHAPES = {
@@ -17,11 +17,15 @@ SHAPES = {
     'sequential/dense/kernel:0': (16, 10),
 }
 
-# RUN reconstrion and test for the first 10 models
-for model_index in range(10):
-    weights = notebook.weights_train['mnist'][model_index]
-    activation = str(notebook.configs_train['mnist']['config.activation'][model_index])
-
+def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:
+    """
+    Reconstruct a CNN model from the paper with the given weights and activation function.
+    Args:
+        weights (list or np.ndarray): The flat list of weights to set in the model.
+        activation (str): The activation function to use in the model.
+    Returns:
+        tf.keras.Model: The reconstructed CNN model. (needs to be compiled before use)
+    """
     model = build_cnn(
         n_layers=3,
         n_hidden=16,
@@ -35,34 +39,46 @@ for model_index in range(10):
         use_batchnorm=False,
     )
     model.build(input_shape=(None, 28, 28, 1))
-    model.summary()
 
-    # rebuild model with correct shapes
-    i=0
+    weights = reshape_weights(weights, SHAPES)
+    model.set_weights(weights)
+    return model
+
+def reshape_weights(weights: np.ndarray, shapes: dict) -> list:
+    """
+    Reshape a flat list of weights into the specified shapes.
+
+    Args:
+        weights (list or np.ndarray): The flat list of weights.
+        shapes (dict): An ordered dictionary of layer names and their corresponding shapes.
+
+    Returns:
+        list: A list of reshaped weights in the correct order.
+    """
     reshaped_weights = []
-    for shape in SHAPES.values():
+    i = 0
+    for shape in shapes.values():
         length = prod(shape)
         layer = weights[i:i+length].reshape(shape)
         i += length
-
-        # reorder bias after weights
         if len(layer.shape) > 1:  # is a weight layer
             reshaped_weights.insert(-1, layer)
         else:  # is a bias layer
             reshaped_weights.append(layer)
+    return reshaped_weights
 
-    model.set_weights(reshaped_weights)
+# Example usage:
+if __name__ == "__main__":
+    import numpy as np
+    # Example weights and activation function
+    example_weights = np.array([0.1] * sum(prod(shape) for shape in SHAPES.values()))
+    example_activation = 'relu'
 
-    # Compile the model before evaluation
-    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
-    # Load and preprocess MNIST test set
-    (_, _), (x_test, y_test) = mnist.load_data()
-    x_test = x_test.astype("float32") / 127.5 - 1.0  # rescale data between -1 and 1
-    x_test = x_test[..., None]  # Add channel dimension
-
-    # Evaluate model accuracy
-    test_loss, test_acc = model.evaluate(x_test, y_test, verbose=2)
-    print(f"Test accuracy: {test_acc:.4f}")
-    # target test accuracy
-    print("Target test accuracy:", notebook.outputs_train['mnist'][model_index][0])
+    # Reconstruct the model
+    model = reconstruct_network(example_weights, example_activation)
+    
+    # Print model summary
+    model.summary()
+    # Note: You need to compile the model before using it for training or evaluation.
+    # model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    # model.fit(...)  # Example training code
