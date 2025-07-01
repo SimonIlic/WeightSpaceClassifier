@@ -4,8 +4,6 @@ from tensorflow.keras.datasets import fashion_mnist, mnist, cifar10
 from tqdm import tqdm
 import os
 
-
-
 from reconstruct_network import reconstruct_network
 from load_dataset import load_dataset
 
