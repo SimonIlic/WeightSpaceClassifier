@@ -94,6 +94,7 @@ def load_testset_data(dataset: str):
         data = (data[0], (x_test, y_test))
 
     elif dataset == 'svhn_cropped':
+        # SVHN dataset is not implemented (yet) because there is no easy keras datasets loader available
         raise NotImplementedError("SVHN dataset loading not implemented")
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
