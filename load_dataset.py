@@ -20,7 +20,9 @@ DATAFRAME_METRIC_COLS = [
     'test_accuracy',
     'test_loss',
     'train_accuracy',
-    'train_loss']
+    'train_loss',
+    ]
+DATAFRAME_CLASS_ACCURACY_COLS = ['accuracy_class_' + str(i) for i in range(10)]
 TRAIN_SIZE = 15_000
 
 # TODO: modify the following lines
@@ -31,7 +33,7 @@ CIFAR_OUTDIR = './cifar10'
 SVHN_OUTDIR = './svhn_cropped'
 
 def filter_checkpoints(weights, dataframe,
-                       stage='final', binarize=True):
+                       stage='final', binarize=True, load_class_acc=False):
   """Take one checkpoint per run and do some pre-processing.
 
   Args:
@@ -54,6 +56,10 @@ def filter_checkpoints(weights, dataframe,
     All the num_remaining_ckpts rows correspond to one checkpoint out of each
     run we had.
   """
+  if load_class_acc:
+    return_cols = DATAFRAME_METRIC_COLS + DATAFRAME_CLASS_ACCURACY_COLS
+  else:
+    return_cols = DATAFRAME_METRIC_COLS
 
   ids_to_take = []
   # Keep in mind that the rows of the DataFrame were sorted according to ckpt
@@ -103,12 +109,12 @@ def filter_checkpoints(weights, dataframe,
   ckpts = dataframe.axes[0][ids_to_take]
 
   return (weights[ids_to_take, :],
-          dataframe[DATAFRAME_METRIC_COLS].values[ids_to_take, :].astype(
+          dataframe[return_cols].values[ids_to_take, :].astype(
               np.float32),
           hyperparams,
           ckpts)
 
-def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False):
+def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False, metrics_file='metrics.csv', load_class_acc=False):
     """Load weight, metric, and config data for a single dataset.
 
     Args:
@@ -138,7 +144,7 @@ def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False):
 
     # Load the raw weights and metrics
     weights_path = os.path.join(dirname, "weights.npy")
-    metrics_path = os.path.join(dirname, "metrics.csv")
+    metrics_path = os.path.join(dirname, metrics_file)
 
     weights = np.load(weights_path, mmap_mode='r')
     with gfile.GFile(metrics_path) as f:
@@ -146,7 +152,7 @@ def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False):
 
     # Select one checkpoint per run and preprocess
     weights_flt, metrics_flt, configs_flt, ckpts = filter_checkpoints(
-        weights, metrics_df, binarize=binarize, stage=stage
+        weights, metrics_df, binarize=binarize, stage=stage, load_class_acc=load_class_acc
     )
 
     # Filter out DNNs with NaNs/Infs in their weights
@@ -180,6 +186,6 @@ if __name__ == "__main__":
   # load mnist
   import time
   start_time = time.time()
-  weights_train, weights_test, outputs_train, outputs_test, configs_train, configs_test = load_dataset('mnist')
+  weights_train, weights_test, outputs_train, outputs_test, configs_train, configs_test = load_dataset('mnist', metrics_file='metrics_merged.csv', load_class_acc=True)
   end_time = time.time()
   print(f"Loaded MNIST dataset in {end_time - start_time:.2f} seconds")
