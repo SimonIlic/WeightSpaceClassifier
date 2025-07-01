@@ -31,7 +31,6 @@ CIFAR_OUTDIR = './cifar10'
 SVHN_OUTDIR = './svhn_cropped'
 
 def filter_checkpoints(weights, dataframe,
-                       target='test_accuracy',
                        stage='final', binarize=True):
   """Take one checkpoint per run and do some pre-processing.
 
@@ -56,7 +55,6 @@ def filter_checkpoints(weights, dataframe,
     run we had.
   """
 
-  assert target in DATAFRAME_METRIC_COLS, 'unknown target'
   ids_to_take = []
   # Keep in mind that the rows of the DataFrame were sorted according to ckpt
   # Fetch the unit id corresponding to the ckpt of the first row
