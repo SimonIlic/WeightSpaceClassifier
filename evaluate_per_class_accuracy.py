@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist, mnist, cifar10
+import tensorflow_datasets as tdfs
 from tqdm import tqdm
 import os
 
@@ -92,8 +94,11 @@ def load_testset_data(dataset: str):
         data = (data[0], (x_test, y_test))
 
     elif dataset == 'svhn_cropped':
-        # SVHN dataset is not implemented (yet) because there is no easy keras datasets loader available
-        raise NotImplementedError("SVHN dataset loading not implemented")
+        svhn_test = tdfs.load('svhn_cropped', split='test', as_supervised=True, batch_size=-1) # load all data at once
+        x_test, y_test = tdfs.as_numpy(svhn_test)
+        x_test = tf.image.rgb_to_grayscale(x_test).numpy()  # convert to greyscale
+        data = ((None, None), (x_test, y_test))
+
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
     
@@ -141,7 +146,8 @@ def main(dataset: str = DATASET):
         # save results to a CSV file or any other format as needed
         results_df = pd.DataFrame([results])
         results_df.to_csv(f'{dataset}_model_results.csv', mode='a', header=model_index==0, index=False)
-    print(f"Results for model {model_index} saved to {dataset}_model_results.csv")
+
+    print(f"All per-class results for {dataset} models saved to {dataset}_model_results.csv")
 
 
 if __name__ == "__main__":
