@@ -1,4 +1,7 @@
+# ignore notebooks, except specific example notebook (whitelisted)
 *.ipynb
+!example_attribution.ipynb
+
 *.csv
 *.png
 
