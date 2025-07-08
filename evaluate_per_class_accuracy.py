@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.datasets import fashion_mnist, mnist, cifar10
-import tensorflow_datasets as tdfs
+from keras.datasets import fashion_mnist, mnist, cifar10
+import tensorflow_datasets as tfds
 from tqdm import tqdm
 import os
 
@@ -94,9 +94,9 @@ def load_testset_data(dataset: str):
         data = (data[0], (x_test, y_test))
 
     elif dataset == 'svhn_cropped':
-        svhn_test = tdfs.load('svhn_cropped', split='test', as_supervised=True, batch_size=-1) # load all data at once
-        x_test, y_test = tdfs.as_numpy(svhn_test)
-        x_test = tf.image.rgb_to_grayscale(x_test).numpy()  # convert to greyscale
+        svhn_test = tfds.load('svhn_cropped', split='test', as_supervised=True, batch_size=-1) # load all data at once
+        x_test, y_test = tfds.as_numpy(svhn_test)
+        x_test = tf.image.rgb_to_grayscale(x_test).numpy()  # convert to greyscale # type: ignore
         data = ((None, None), (x_test, y_test))
 
     else:
