@@ -33,7 +33,7 @@ class FCN(nn.Module):
             blocks += [lin, activation()]
             if dropout_p > 0:
                 blocks.append(nn.Dropout(dropout_p))
-            in_f = n_hidden
+            in_f = n_hidden # to make sure intermediate layers are (n_hidden, n_hidden)
         self.hidden = nn.Sequential(*blocks)
         self.out = nn.Linear(in_f, n_outputs)
         self.last_activation = last_activation
@@ -84,7 +84,7 @@ def mse_mae(model, loader, device="cpu"):
 # 4. Trainer ─ replicates fit() + EarlyStopping
 # ---------------------------------------------------------------------
 def train_torch_dnn(train_x, train_y, test_x, test_y, config):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
     # ---------- data ----------
     train_ds = TensorDataset(torch.as_tensor(train_x, dtype=torch.float32),
