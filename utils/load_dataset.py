@@ -1,11 +1,13 @@
 # loads and filters datasets of weights, metrics, and hyperparameters
 
 import os
+import logging
 import numpy as np
 import pandas as pd
 from tensorflow import keras
 from tensorflow.io import gfile
 
+SEED = 123  # Seed 123 will be the canonical seed for this project.
 DATAFRAME_CONFIG_COLS = [
     'config.w_init',
     'config.activation',
@@ -114,7 +116,7 @@ def filter_checkpoints(weights, dataframe,
           hyperparams,
           ckpts)
 
-def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False, metrics_file='metrics.csv', load_class_acc=False):
+def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False, metrics_file='metrics.csv', load_class_acc=False, shuffle=True, seed=SEED):
     """Load weight, metric, and config data for a single dataset.
 
     Args:
@@ -163,22 +165,39 @@ def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False, 
 
     # Shuffle and split into train/test
     random_idx = np.arange(inputs.shape[0])
-    np.random.shuffle(random_idx)
+    if shuffle:
+      if seed == SEED:
+        logging.warning(f"Using default seed {SEED} for shuffling. This results in the canonical train/test/val splits for this project. If a random split is desired, please use a different seed.")
+      np.random.seed(seed)  # Set seed for reproducibility
+      np.random.shuffle(random_idx)
+
+    # compute the test size and validation size from what's left after the train split
+    test_size = inputs.shape[0] - train_size
+    val_size = test_size // 2
+    test_size -= val_size  # Adjust test size to account for validation
 
     weights_train = inputs[random_idx[:train_size]]
-    weights_test = inputs[random_idx[train_size:]]
     outputs_train = outputs[random_idx[:train_size]]
-    outputs_test = outputs[random_idx[train_size:]]
     configs_train = configs.iloc[random_idx[:train_size]]
-    configs_test = configs.iloc[random_idx[train_size:]]
 
-    return (
+    weights_test = inputs[random_idx[train_size:train_size + test_size]]
+    outputs_test = outputs[random_idx[train_size:train_size + test_size]]
+    configs_test = configs.iloc[random_idx[train_size:train_size + test_size]]
+
+    weights_val = inputs[random_idx[train_size + test_size:]]
+    outputs_val = outputs[random_idx[train_size + test_size:]]
+    configs_val = configs.iloc[random_idx[train_size + test_size:]]
+
+    return ((
         weights_train,
         weights_test,
-        outputs_train,
-        outputs_test,
+        outputs_train,),
+        (outputs_test,
         configs_train,
-        configs_test,
+        configs_test,),
+        (weights_val,
+        outputs_val,
+        configs_val)
     )
 
 # Example usage:
@@ -186,6 +205,9 @@ if __name__ == "__main__":
   # load mnist
   import time
   start_time = time.time()
-  weights_train, weights_test, outputs_train, outputs_test, configs_train, configs_test = load_dataset('mnist', metrics_file='metrics_merged.csv', load_class_acc=True)
+  train, test, val = load_dataset('mnist', metrics_file='metrics_merged.csv', load_class_acc=True)
+  weights_train, weights_test, outputs_train = train
+  outputs_test, configs_train, configs_test = test
+  weights_val, outputs_val, configs_val = val
   end_time = time.time()
   print(f"Loaded MNIST dataset in {end_time - start_time:.2f} seconds")
