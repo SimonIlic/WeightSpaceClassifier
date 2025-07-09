@@ -116,12 +116,15 @@ def main(dataset: str = DATASET):
         raise FileExistsError(f"Results file {dataset}_model_results.csv already exists. Please remove it or choose a different dataset.")
     
     # load_dataset
-    weights_train, weights_test, outputs_train, outputs_test, configs_train, configs_test = load_dataset(dataset)
+    train, test, val = load_dataset(dataset)
+    weights_train, outputs_train, configs_train = train
+    weights_test, outputs_test, configs_test = test
+    weights_val, outputs_val, configs_val = val
 
-    # combine train and test split
-    weights = np.concatenate((weights_train, weights_test), axis=0)
-    outputs = np.concatenate((outputs_train, outputs_test), axis=0)
-    configs = pd.concat((configs_train, configs_test), axis=0)
+    # combine train, test, val split
+    weights = np.concatenate((weights_train, weights_test, weights_val), axis=0)
+    outputs = np.concatenate((outputs_train, outputs_test, outputs_val), axis=0)
+    configs = pd.concat((configs_train, configs_test, configs_val), axis=0)
 
     # load test set data
     x_test, y_test = load_testset_data(dataset)

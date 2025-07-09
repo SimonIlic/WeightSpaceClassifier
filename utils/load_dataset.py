@@ -128,9 +128,9 @@ def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False, 
             `filter_checkpoints`.
 
     Returns:
-        Tuple (weights_train, weights_test,
-               outputs_train, outputs_test,
-               configs_train, configs_test)
+        Tuple (weights_train, outputs_train, configs_train),
+               (weights_test, outputs_test, configs_test),
+               (weights_val, outputs_val, configs_val)
     """
     # Map dataset names to their corresponding output directory
     outdir_map = {
@@ -190,14 +190,16 @@ def load_dataset(dataset, train_size=TRAIN_SIZE, stage='final', binarize=False, 
 
     return ((
         weights_train,
-        weights_test,
-        outputs_train,),
-        (outputs_test,
-        configs_train,
-        configs_test,),
-        (weights_val,
-        outputs_val,
-        configs_val)
+        outputs_train,
+        configs_train,),
+        (weights_test,
+         outputs_test,
+         configs_test,),
+        (
+            weights_val,
+            outputs_val,
+            configs_val,
+        )
     )
 
 # Example usage:
@@ -206,8 +208,6 @@ if __name__ == "__main__":
   import time
   start_time = time.time()
   train, test, val = load_dataset('mnist', metrics_file='metrics_merged.csv', load_class_acc=True)
-  weights_train, weights_test, outputs_train = train
-  outputs_test, configs_train, configs_test = test
-  weights_val, outputs_val, configs_val = val
+
   end_time = time.time()
   print(f"Loaded MNIST dataset in {end_time - start_time:.2f} seconds")
