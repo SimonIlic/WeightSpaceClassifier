@@ -96,7 +96,7 @@ def load_testset_data(dataset: str):
     elif dataset == 'svhn_cropped':
         svhn_test = tfds.load('svhn_cropped', split='test', as_supervised=True, batch_size=-1) # load all data at once
         x_test, y_test = tfds.as_numpy(svhn_test)
-        x_test = tf.image.rgb_to_grayscale(x_test).numpy()  # convert to greyscale # type: ignore
+        x_test = np.mean(x_test, axis=-1, keepdims=False)  # convert to greyscale
         data = ((None, None), (x_test, y_test))
 
     else:
