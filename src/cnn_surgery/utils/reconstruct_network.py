@@ -19,7 +19,7 @@ SHAPES = {
 }
 
 
-def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:
+def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:  # type: ignore
     """
     Reconstruct a CNN model from the paper with the given weights and activation function.
     Args:
@@ -42,8 +42,8 @@ def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:
     )
     model.build(input_shape=(None, 28, 28, 1))
 
-    weights = reshape_weights(weights, SHAPES)
-    model.set_weights(weights)
+    weights_reshaped = reshape_weights(weights, SHAPES)
+    model.set_weights(weights_reshaped)
     return model
 
 
