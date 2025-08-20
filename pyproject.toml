@@ -16,8 +16,14 @@ dependencies = [
     "numpy>=2.3.2",
     "pandas>=2.3.1",
     "tensorflow>=2.20.0",
+    "tensorflow-datasets>=4.9.9",
+    "tensorflow-io>=0.37.1",
     "torch>=2.8.0",
+    "tqdm>=4.67.1",
 ]
+
+[tool.ruff]
+line-length = 100
 
 [tool.ruff.lint]
 unfixable = ["F401"] # never auto-remove imports
