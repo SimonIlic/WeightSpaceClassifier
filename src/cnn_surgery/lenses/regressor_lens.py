@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
+from typing import Tuple, Any, Union
+
 
 # config – pulled from your best_configs entry
 default_config = dict(
@@ -158,7 +160,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
     print(f"Test MAD = {mae_test:.6f}")
     print(f"Test R2  = {r2:.6f}")
 
-    return model
+    return model, ((mse_train, mae_train), (mse_test, mae_test), r2)
 
 
 # ---------------------------------------------------------------------
@@ -168,20 +170,40 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
 # Dummy data so the script runs – substitute your own arrays here!
 # -----------------------------------------------------------------
 
+<<<<<<< HEAD:src/cnn_surgery/lenses/regressor_lens.py
 def get_regressor_lens(weights_train: np.ndarray, outputs_train: np.ndarray, weights_test: np.ndarray, outputs_test: np.ndarray, config: dict=default_config, device='cpu') -> torch.nn.Module:
     """
     Get a regressor lens for the given training and test weights and outputs.
+=======
+>>>>>>> 7a8be94 (add return metrics flags):lenses/regressor_lens.py
 
-    Trains a DNN (MLP) regressor model on the weights_train data, which may then be used for attribution analysis or other tasks.
+def get_regressor_lens(
+    weights_train: np.ndarray,
+    outputs_train: np.ndarray,
+    weights_test: np.ndarray,
+    outputs_test: np.ndarray,
+    config: dict = default_config,
+    return_metrics: bool = False
+) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Any]]:
+    """
+    Trains a DNN (MLP) regressor model on the provided training data and evaluates it on the test data.
 
     Args:
-        weights_train (np.ndarray): Training weights.
-        outputs_train (np.ndarray): Training outputs.
-        weights_test (np.ndarray): Test weights.
-        outputs_test (np.ndarray): Test outputs.
-        config (dict): Configuration dictionary for the regressor MLP.
+        weights_train (np.ndarray): Training input features.
+        outputs_train (np.ndarray): Training target outputs.
+        weights_test (np.ndarray): Test input features.
+        outputs_test (np.ndarray): Test target outputs.
+        config (dict, optional): Configuration dictionary for the regressor MLP. Defaults to default_config.
+        return_metrics (bool, optional): If True, also returns training and test metrics. Defaults to False.
 
     Returns:
-        torch.nn.Module: The trained regressor model.
+        torch.nn.Module or Tuple[torch.nn.Module, Tuple]: The trained regressor model, and optionally the evaluation metrics.
     """
+<<<<<<< HEAD:src/cnn_surgery/lenses/regressor_lens.py
     return train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config, device=device)
+=======
+    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config)
+    if return_metrics:
+        return model, metrics
+    return model
+>>>>>>> 7a8be94 (add return metrics flags):lenses/regressor_lens.py
