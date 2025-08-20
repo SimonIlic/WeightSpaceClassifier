@@ -1,21 +1,23 @@
 from math import prod
-from utils.train_network import build_cnn
+
+import numpy as np
 
 # typing imports
 import tensorflow as tf
-import numpy as np
 
+from cnn_surgery.utils.train_network import build_cnn
 
 SHAPES = {
-    'sequential/conv2d/bias:0': (16,),
-    'sequential/conv2d/kernel:0': (3, 3, 1, 16),
-    'sequential/conv2d_1/bias:0': (16,),
-    'sequential/conv2d_1/kernel:0': (3, 3, 16, 16),
-    'sequential/conv2d_2/bias:0': (16,),
-    'sequential/conv2d_2/kernel:0': (3, 3, 16, 16),
-    'sequential/dense/bias:0': (10,),
-    'sequential/dense/kernel:0': (16, 10),
+    "sequential/conv2d/bias:0": (16,),
+    "sequential/conv2d/kernel:0": (3, 3, 1, 16),
+    "sequential/conv2d_1/bias:0": (16,),
+    "sequential/conv2d_1/kernel:0": (3, 3, 16, 16),
+    "sequential/conv2d_2/bias:0": (16,),
+    "sequential/conv2d_2/kernel:0": (3, 3, 16, 16),
+    "sequential/dense/bias:0": (10,),
+    "sequential/dense/kernel:0": (16, 10),
 }
+
 
 def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:
     """
@@ -33,8 +35,8 @@ def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:
         dropout_rate=0.0,
         activation=activation,
         w_regularizer=None,
-        w_init='glorot_uniform',
-        b_init='zeros',
+        w_init="glorot_uniform",
+        b_init="zeros",
         stride=2,
         use_batchnorm=False,
     )
@@ -43,6 +45,7 @@ def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:
     weights = reshape_weights(weights, SHAPES)
     model.set_weights(weights)
     return model
+
 
 def reshape_weights(weights: np.ndarray, shapes: dict) -> list:
     """
@@ -59,7 +62,7 @@ def reshape_weights(weights: np.ndarray, shapes: dict) -> list:
     i = 0
     for shape in shapes.values():
         length = prod(shape)
-        layer = weights[i:i+length].reshape(shape)
+        layer = weights[i : i + length].reshape(shape)
         i += length
         if len(layer.shape) > 1:  # is a weight layer
             reshaped_weights.insert(-1, layer)
@@ -67,16 +70,18 @@ def reshape_weights(weights: np.ndarray, shapes: dict) -> list:
             reshaped_weights.append(layer)
     return reshaped_weights
 
+
 # Example usage:
 if __name__ == "__main__":
     import numpy as np
+
     # Example weights and activation function
     example_weights = np.array([0.1] * sum(prod(shape) for shape in SHAPES.values()))
-    example_activation = 'relu'
+    example_activation = "relu"
 
     # Reconstruct the model
     model = reconstruct_network(example_weights, example_activation)
-    
+
     # Print model summary
     model.summary()
     # Note: You need to compile the model before using it for training or evaluation.
