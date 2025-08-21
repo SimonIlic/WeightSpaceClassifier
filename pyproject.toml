@@ -1,0 +1,31 @@
+[project]
+name = "cnn_surgery"
+version = "0.1.0"
+description = "Code for 'project snijzaal'"
+authors = [
+    {name = "Simon Ilić", email = "ilic@cwi.nl"},
+    {name = "Moos Middelkoop", email = "moos@cwi.nl"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<=3.12"
+dependencies = [
+    "captum>=0.7.0",
+    "ipykernel>=6.30.1",
+    "ipython>=9.4.0",
+    "matplotlib>=3.10.5",
+    "matplotlib-inline>=0.1.7",
+    "numpy>=1.26.0,<2.0.0",
+    "pandas>=2.3.1",
+    "plotly>=6.3.0",
+    "tensorflow>=2.15.0,<2.18.0",
+    "tensorflow-datasets>=4.9.9",
+    "tensorflow-io>=0.37.1",
+    "torch>=2.8.0",
+    "tqdm>=4.67.1",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+unfixable = ["F401"] # never auto-remove imports
