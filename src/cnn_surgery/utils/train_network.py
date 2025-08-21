@@ -30,10 +30,10 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 import numpy as np
-import tensorflow.compat.v2 as tf
+import tensorflow.compat.v2 as tf  # type: ignore
 import tensorflow_datasets as tfds
 from absl import app, flags, logging
-from tensorflow.io import gfile
+from tensorflow.io import gfile  # type: ignore
 
 # Configure TensorFlow for macOS compatibility
 tf.config.threading.set_intra_op_parallelism_threads(1)
