@@ -83,8 +83,9 @@ def mse_mae(model, loader, device="cpu"):
 # ---------------------------------------------------------------------
 # 4. Trainer ─ replicates fit() + EarlyStopping
 # ---------------------------------------------------------------------
-def train_torch_dnn(train_x, train_y, test_x, test_y, config):
-    device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
+    if device is None:
+        device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
     # ---------- data ----------
     train_ds = TensorDataset(torch.as_tensor(train_x, dtype=torch.float32),
@@ -167,7 +168,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config):
 # Dummy data so the script runs – substitute your own arrays here!
 # -----------------------------------------------------------------
 
-def get_regressor_lens(weights_train: np.ndarray, outputs_train: np.ndarray, weights_test: np.ndarray, outputs_test: np.ndarray, config: dict=default_config) -> torch.nn.Module:
+def get_regressor_lens(weights_train: np.ndarray, outputs_train: np.ndarray, weights_test: np.ndarray, outputs_test: np.ndarray, config: dict=default_config, device='cpu') -> torch.nn.Module:
     """
     Get a regressor lens for the given training and test weights and outputs.
 
@@ -183,4 +184,4 @@ def get_regressor_lens(weights_train: np.ndarray, outputs_train: np.ndarray, wei
     Returns:
         torch.nn.Module: The trained regressor model.
     """
-    return train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config)
+    return train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config, device=device)
