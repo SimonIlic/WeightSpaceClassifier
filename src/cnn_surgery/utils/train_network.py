@@ -74,6 +74,7 @@ flags.DEFINE_string("master", "local", 'Name of the TensorFlow master to use. "l
 flags.DEFINE_string(
     "tpu_job_name", "tpu_worker", "Name of the TPU worker job. This is required when having multiple TPU worker jobs."
 )
+flags.DEFINE_integer("exclude_class", None, "Class (int) to exclude from training set.")
 
 
 def _get_workunit_params():
@@ -130,6 +131,7 @@ def get_dataset(
     random_seed=None,
     normalize=True,
     augment=False,
+    exclude_class=None,
 ):
     """Load and preprocess the dataset.
 
@@ -142,6 +144,7 @@ def get_dataset(
       random_seed: random seed for shuffling operations
       normalize: whether to normalize the data into [-1, 1]
       augment: use data augmentation on the training set.
+      exclude_class: if set to an integer, this class will be excluded from the training set
 
     Returns:
       tuple (training_dataset, test_dataset, info), where info is a dictionary
@@ -154,6 +157,10 @@ def get_dataset(
         effective_train_size = int(effective_train_size * train_fraction)
         data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)
         data_tr = data_tr.take(effective_train_size)
+
+    # Filter out class
+    if exclude_class is not None:
+        data_tr = data_tr.filter(lambda b: tf.not_equal(b["label"], exclude_class))
 
     fn_tr = lambda b: _preprocess_batch(b, normalize, to_grayscale, augment)
     data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)
@@ -258,23 +265,23 @@ def eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir):
 
 
 def run(
-    workdir,
-    data,
-    strategy,
-    architecture,
-    n_layers,
-    n_hiddens,
-    activation,
-    dropout_rate,
-    l2_penalty,
-    w_init_name,
-    b_init_name,
-    optimizer_name,
-    learning_rate,
-    n_epochs,
-    epochs_between_checkpoints,
-    init_stddev,
-    cnn_stride,
+    workdir="/tmp/dnn_science_workdir",
+    data=None,
+    strategy=None,
+    architecture="cnn",
+    n_layers=3,
+    n_hiddens=16,
+    activation="relu",
+    dropout_rate=0.0,
+    l2_penalty=0.0,
+    w_init_name="he_normal",
+    b_init_name="zero",
+    optimizer_name="sgd",
+    learning_rate=0.01,
+    n_epochs=18,
+    epochs_between_checkpoints=6,
+    init_stddev=0.05,
+    cnn_stride=2,
     reduce_learningrate=False,
     verbosity=0,
 ):
@@ -401,6 +408,7 @@ def main(unused_argv):
         train_fraction=FLAGS.train_fraction,
         random_seed=FLAGS.random_seed,
         augment=FLAGS.augment_traindata,
+        exclude_class=FLAGS.exclude_class,
     )
 
     # Figure out TPU related stuff and create distribution strategy
