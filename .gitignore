@@ -5,6 +5,8 @@
 *.csv
 *.png
 
+/runs/
+
 reconstruct_network_old.py
 
 # ignore data folder
