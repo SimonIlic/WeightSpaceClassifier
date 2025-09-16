@@ -155,7 +155,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
 
     print("\n========== FINAL REPORT ==========")
     print(f"Test MSE = {mse_test:.6f}")
-    print(f"Test MAD = {mae_test:.6f}")
+    print(f"Test MAE = {mae_test:.6f}")
     print(f"Test R2  = {r2:.6f}")
 
     return model, ((mse_train, mae_train), (mse_test, mae_test), r2)
