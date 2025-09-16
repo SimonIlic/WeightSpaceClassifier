@@ -179,6 +179,7 @@ def get_regressor_lens(
     outputs_test: np.ndarray,
     config: dict = default_config,
     return_metrics: bool = False,
+    device: str | None = None,
 ) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Any]]:
     """
     Trains a DNN (MLP) regressor model on the provided training data and evaluates it on the test data.
@@ -194,7 +195,7 @@ def get_regressor_lens(
     Returns:
         torch.nn.Module or Tuple[torch.nn.Module, Tuple]: The trained regressor model, and optionally the evaluation metrics.
     """
-    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config)
+    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config, device)
     if return_metrics:
         return model, metrics
     return model
