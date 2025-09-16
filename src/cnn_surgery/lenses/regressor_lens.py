@@ -26,9 +26,7 @@ default_config = dict(
 # 1. MLP architecture (identical to build_fcn from unterthiner, but last layer = sigmoid)
 # ---------------------------------------------------------------------
 class FCN(nn.Module):
-    def __init__(
-        self, input_dim, n_layers, n_hidden, n_outputs, dropout_p, activation=nn.ReLU, last_activation="sigmoid"
-    ):
+    def __init__(self, input_dim, n_layers, n_hidden, n_outputs, dropout_p, activation=nn.ReLU, last_activation="sigmoid"):
         super().__init__()
         self.flatten = nn.Flatten()
         blocks, in_f = [], input_dim
@@ -92,9 +90,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
     # ---------- data ----------
-    train_ds = TensorDataset(
-        torch.as_tensor(train_x, dtype=torch.float32), torch.as_tensor(train_y, dtype=torch.float32)
-    )
+    train_ds = TensorDataset(torch.as_tensor(train_x, dtype=torch.float32), torch.as_tensor(train_y, dtype=torch.float32))
     test_ds = TensorDataset(torch.as_tensor(test_x, dtype=torch.float32), torch.as_tensor(test_y, dtype=torch.float32))
 
     train_loader = DataLoader(train_ds, batch_size=int(config["batch_size"]), shuffle=True)
@@ -162,7 +158,6 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
     print(f"Test MAD = {mae_test:.6f}")
     print(f"Test R2  = {r2:.6f}")
 
-    return model, ((mse_train, mae_train), (mse_test, mae_test), r2)
     return model, ((mse_train, mae_train), (mse_test, mae_test), r2)
 
 
