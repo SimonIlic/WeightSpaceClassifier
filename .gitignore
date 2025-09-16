@@ -1,7 +1,7 @@
 # ignore notebooks, except specific example notebook (whitelisted)
 *.ipynb
 !example_attribution.ipynb
-!regressor_probe_backprop.ipynb
+#!regressor_probe_backprop.ipynb
 
 *.csv
 *.png
