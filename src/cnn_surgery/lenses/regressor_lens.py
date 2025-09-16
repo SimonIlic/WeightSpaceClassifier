@@ -69,7 +69,10 @@ def apply_weight_init(module, w_init_name: str, std: float | None):
 # ---------------------------------------------------------------------
 # 3. Metric helpers
 # ---------------------------------------------------------------------
-def mse_mae(model, loader, device="cpu"):
+def mse_mae(model, loader, device="None"):
+    if device is None:
+        device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+
     model.eval()
     mse_tot, mae_tot, n = 0.0, 0.0, 0
     with torch.no_grad():
