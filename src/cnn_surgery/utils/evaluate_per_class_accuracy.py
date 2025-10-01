@@ -109,15 +109,15 @@ def load_testset_data(dataset: str):
     return x_test, y_test
 
 
-def main(dataset: str = DATASET):
+def main(dataset: str = DATASET, stage: str = 'final'):
     # if output csv file exists raise error
-    if os.path.exists(f"{dataset}_model_results.csv"):
+    if os.path.exists(f"{dataset}_{stage}_model_results.csv"):
         raise FileExistsError(
-            f"Results file {dataset}_model_results.csv already exists. Please remove it or choose a different dataset."
+            f"Results file {dataset}_{stage}_model_results.csv already exists. Please remove it or choose a different dataset."
         )
 
     # load_dataset
-    train, test, val = load_dataset(dataset)
+    train, test, val = load_dataset(dataset, stage=stage)
     weights_train, outputs_train, configs_train = train
     weights_test, outputs_test, configs_test = test
     weights_val, outputs_val, configs_val = val
@@ -151,9 +151,9 @@ def main(dataset: str = DATASET):
 
         # save results to a CSV file or any other format as needed
         results_df = pd.DataFrame([results])
-        results_df.to_csv(f"{dataset}_model_results.csv", mode="a", header=model_index == 0, index=False)
+        results_df.to_csv(f"{dataset}_{stage}_model_results.csv", mode="a", header=model_index == 0, index=False)
 
-    print(f"All per-class results for {dataset} models saved to {dataset}_model_results.csv")
+    print(f"All per-class results for {dataset} models saved to {dataset}_{stage}_model_results.csv")
 
 
 if __name__ == "__main__":
@@ -167,6 +167,13 @@ if __name__ == "__main__":
         choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"],
         help="Dataset to use for evaluation (default: mnist)",
     )
+    parser.add_argument(
+        "--stage",
+        type=str,
+        default="final",
+        choices=["final", "early", "middle"],
+        help="Checkpoint stage to select (default: final)",
+    )
     args = parser.parse_args()
 
-    main(dataset=args.dataset)
+    main(dataset=args.dataset, stage=args.stage)
