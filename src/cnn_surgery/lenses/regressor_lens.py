@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
+import matplotlib.pyplot as plt
 
 # config – pulled from your best_configs entry
 default_config = dict(
@@ -88,7 +89,7 @@ def mse_mae(model, loader, device="None"):
 # ---------------------------------------------------------------------
 # 4. Trainer ─ replicates fit() + EarlyStopping
 # ---------------------------------------------------------------------
-def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
+def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbose: bool = False):
     if device is None:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -122,30 +123,68 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
     # ---------- early-stopping _________________
     patience, patience_left = 10, 10
     best_val = float("inf")
+    train_loss_history: list[float] = []
+    val_loss_history: list[float] = []
 
     print("\nStarting training of RegressorLens:")
     for epoch in range(1, 301):  # epochs = 300
         model.train()
+        epoch_loss = 0.0
+        n_batches = 0
         for xb, yb in train_loader:
             xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad()
             loss = criterion(model(xb), yb)
             loss.backward()
             optimizer.step()
+            epoch_loss += loss.item()
+            n_batches += 1
+        train_loss_history.append(epoch_loss / max(n_batches, 1))
 
         # ---- validation
-        val_mse, val_mae = mse_mae(model, val_loader, device)
-        print(f"Epoch {epoch:3d} ─ val MSE {val_mse:.6f} | val MAE {val_mae:.6f}")
+        model.eval()
+        val_loss_sum = 0.0
+        val_mae_sum = 0.0
+        val_mse_sum = 0.0
+        val_count = 0
+        with torch.no_grad():
+            for xb, yb in val_loader:
+                xb, yb = xb.to(device), yb.to(device)
+                pred = model(xb)
+                batch_size = xb.size(0)
+                loss = criterion(pred, yb)
+                val_loss_sum += loss.item() * batch_size
+                val_mse_sum += F.mse_loss(pred, yb, reduction="none").mean(dim=1).sum().item()
+                val_mae_sum += F.l1_loss(pred, yb, reduction="none").mean(dim=1).sum().item()
+                val_count += batch_size
+
+        val_loss = val_loss_sum / max(val_count, 1)
+        val_mse = val_mse_sum / max(val_count, 1)
+        val_mae = val_mae_sum / max(val_count, 1)
+        val_loss_history.append(val_loss)
+        print(f"Epoch {epoch:3d} ─ val loss {val_loss:.6f} | val MAE {val_mae:.6f}")
 
         # early-stopping logic (min_delta = 0)
-        if val_mse < best_val:  # improvement
-            best_val = val_mse
+        if val_loss < best_val:  # improvement
+            best_val = val_loss
             patience_left = patience
         else:  # no improvement
             patience_left -= 1
             if patience_left == 0:
                 print(f"Early stopped after epoch {epoch}")
                 break
+
+    if verbose and train_loss_history and val_loss_history:
+        plt.figure(figsize=(8, 4.5))
+        plt.plot(range(1, len(train_loss_history) + 1), train_loss_history, label="Training Loss")
+        plt.plot(range(1, len(val_loss_history) + 1), val_loss_history, label="Validation Loss")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss (MSE)")
+        plt.title("Training vs Validation Loss")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.show()
 
     # ---------- final evaluation (batch_size = 128) ----------
     eval_loader_train = DataLoader(train_ds, batch_size=128, shuffle=False)
@@ -181,6 +220,7 @@ def get_regressor_lens(
     config: dict = default_config,
     return_metrics: bool = False,
     device: str | None = None,
+    verbose: bool = False,
 ) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Any]]:
     """
     Trains a DNN (MLP) regressor model on the provided training data and evaluates it on the test data.
@@ -196,7 +236,7 @@ def get_regressor_lens(
     Returns:
         torch.nn.Module or Tuple[torch.nn.Module, Tuple]: The trained regressor model, and optionally the evaluation metrics.
     """
-    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config, device)
+    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config, device, verbose=verbose)
     if return_metrics:
         return model, metrics
     return model
