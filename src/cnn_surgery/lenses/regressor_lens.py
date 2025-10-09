@@ -1,6 +1,7 @@
 # PyToch port of tensorflow DNN used by Unterthiner et al. adapted for multi-output regression.
 
 from typing import Any, Tuple, Union
+from time import time
 
 import numpy as np
 import torch
@@ -128,6 +129,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbo
 
     print("\nStarting training of RegressorLens:")
     for epoch in range(1, 301):  # epochs = 300
+        epoch_start = time()
         model.train()
         epoch_loss = 0.0
         n_batches = 0
@@ -162,7 +164,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbo
         val_mse = val_mse_sum / max(val_count, 1)
         val_mae = val_mae_sum / max(val_count, 1)
         val_loss_history.append(val_loss)
-        print(f"Epoch {epoch:3d} ─ val loss {val_loss:.6f} | val MAE {val_mae:.6f}")
+        print(f"Epoch {epoch:3d} ─ val loss {val_loss:.6f} | val MAE {val_mae:.6f} | duration {time()-epoch_start:.1f}s")
 
         # early-stopping logic (min_delta = 0)
         if val_loss < best_val:  # improvement
