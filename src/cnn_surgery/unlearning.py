@@ -7,6 +7,7 @@ TO DO:
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn as nn
 from tqdm import tqdm
 
 from cnn_surgery.lenses.regressor_lens import get_regressor_lens, mse_mae
@@ -51,12 +52,14 @@ simple_loss = lambda pred, target_idx: pred[target_idx]  # minimize the accuracy
 def targeted_loss(pred, true, target_idx):  # needs a better name
     target_term = pred[target_idx]  # we want to minimize this
 
-    # set target index zero for this term by multiplying with a mask
-    mask = torch.ones_like(pred, requires_grad=False)
-    mask[target_idx] = 0
-    maintain_rest_term = (((true - pred) * mask) ** 2).mean()  # we want to maintain the accuracy of the other classes
+    # # set target index zero for this term by multiplying with a mask
+    # mask = torch.ones_like(pred, requires_grad=False)
+    # mask[target_idx] = 0
+    # maintain_rest_term = (((true - pred) * mask) ** 2).mean()  # we want to maintain the accuracy of the other classes
 
-    return target_term + maintain_rest_term
+    remain_faithful_term = ((true - pred) ** 2).mean()  # we want the regressorlens to remain faithful to the actual performance
+
+    return target_term + remain_faithful_term
 
 
 def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
@@ -77,6 +80,7 @@ def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
 
     print("Starting unlearning procedure")
     diffs_list = []
+    loss_list = []
 
     # convert input weights to tensor for optimization
     doctored_input_weights = torch.tensor(input_weights, requires_grad=True, dtype=torch.float32)
@@ -92,7 +96,8 @@ def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
 
         # this is expensive: a new model needs to be reconstructed and evaluated at every step
         true = torch.tensor(
-            test_network_accuracy(doctored_input_weights.detach().numpy(), og_config["config.activation"])[1], dtype=torch.float32
+            test_network_accuracy(doctored_input_weights.detach().numpy(), og_config["config.activation"])[1],
+            dtype=torch.float32,
         )
 
         loss = targeted_loss(pred, true, target_class)
@@ -104,9 +109,11 @@ def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
             doctored_input_weights.grad.zero_()  # zero gradients
 
         mean_diff = abs((pred.detach().numpy() - np.array(true)).mean())
+
+        loss_list.append(loss.item())
         diffs_list.append(mean_diff)
 
-    return doctored_input_weights, diffs_list
+    return doctored_input_weights, diffs_list, loss_list
 
 
 # ----- plotting -----
@@ -164,7 +171,7 @@ def main():
     # ----- Unlearning -----
     print(type(weights_test[MODEL_IDX]))
 
-    doctored_weights, diffs = unlearn(
+    doctored_weights, diffs, losses = unlearn(
         input_weights=weights_test[MODEL_IDX],
         steps=STEPS,
         lens=RegressorLens,
@@ -174,6 +181,9 @@ def main():
     )  # type: ignore
 
     # ----- Evaluation -----
+    assert isinstance(RegressorLens, nn.Module), (
+        f"RegressorLens should be a torch.nn.Module but is {type(RegressorLens)}, perhaps you called get_regressor_lens() with return_metrics=True? In that case it returns a tuple (model, metrics)."
+    )
     preds = RegressorLens(doctored_weights.unsqueeze(0)).squeeze().detach().numpy()
     actual_accs = test_network_accuracy(doctored_weights.detach().numpy(), configs_test.iloc[MODEL_IDX]["config.activation"])[1]
     before_accs = test_class_accuracies[MODEL_IDX]
@@ -184,6 +194,14 @@ def main():
 
     plot_class_accuracies(preds, actual_accs, before_accs)
     plot_diffs(diffs)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(losses)
+    plt.xlabel("Unlearning step")
+    plt.ylabel("Loss")
+    plt.title("Loss over unlearning steps")
+    plt.ylim(0, max(losses) * 1.2)
+    plt.show()
 
 
 if __name__ == "__main__":
