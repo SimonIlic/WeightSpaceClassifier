@@ -123,6 +123,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None):
     patience, patience_left = 10, 10
     best_val = float("inf")
 
+    print("\nStarting training of RegressorLens:")
     for epoch in range(1, 301):  # epochs = 300
         model.train()
         for xb, yb in train_loader:
