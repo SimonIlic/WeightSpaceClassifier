@@ -2,6 +2,7 @@
 *.ipynb
 !example_attribution.ipynb
 !loading_intermediate_dataset.ipynb
+!unlearning.ipynb
 #!regressor_probe_backprop.ipynb
 
 *.csv
