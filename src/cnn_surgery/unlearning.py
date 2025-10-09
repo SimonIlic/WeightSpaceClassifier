@@ -106,7 +106,7 @@ def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
         mean_diff = abs((pred.detach().numpy() - np.array(true)).mean())
         diffs_list.append(mean_diff)
 
-        return doctored_input_weights, diffs_list
+    return doctored_input_weights, diffs_list
 
 
 # ----- plotting -----
@@ -120,9 +120,9 @@ def plot_class_accuracies(preds, actual_accs, before_accs):
     bar_width = 0.25
 
     plt.figure(figsize=(10, 6))
-    plt.bar(classes - bar_width, before_accs, width=bar_width, label="Before unlearning", color="green", alpha=0.6)
-    plt.bar(classes, actual_accs, width=bar_width, label="After unlearning", color="orange", alpha=0.6)
-    plt.bar(classes + bar_width, preds, width=bar_width, label="Predicted by RegressorLens", color="blue", alpha=0.6)
+    plt.bar(classes - bar_width, before_accs, width=bar_width, label="Before unlearning", alpha=0.7)
+    plt.bar(classes, actual_accs, width=bar_width, label="After unlearning", alpha=0.7)
+    plt.bar(classes + bar_width, preds, width=bar_width, label="Predicted by RegressorLens", alpha=0.7)
 
     plt.xlabel("Class index")
     plt.ylabel("Accuracy")
@@ -178,9 +178,9 @@ def main():
     actual_accs = test_network_accuracy(doctored_weights.detach().numpy(), configs_test.iloc[MODEL_IDX]["config.activation"])[1]
     before_accs = test_class_accuracies[MODEL_IDX]
 
-    print(f"Actual accuracies after unlearning: {actual_accs}")
-    print(f"Accuracies before unlearning: {before_accs}")
-    print(f"Predicted accuracies by RegressorLens after unlearning: {preds}")
+    # print(f"Actual accuracies after unlearning: {actual_accs}")
+    # print(f"Accuracies before unlearning: {before_accs}")
+    # print(f"Predicted accuracies by RegressorLens after unlearning: {preds}")
 
     plot_class_accuracies(preds, actual_accs, before_accs)
     plot_diffs(diffs)
