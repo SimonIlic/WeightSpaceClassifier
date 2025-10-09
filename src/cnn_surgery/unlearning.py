@@ -18,9 +18,9 @@ from cnn_surgery.utils.reconstruct_network import reconstruct_network
 DATASET = "mnist"
 METRICS_FILENAME = "metrics_merged.csv"
 MODEL_IDX = 502  # model to unlearn. Will be from test set
-STEP_SIZE = 0.3
+STEP_SIZE = 1
 TARGET_CLASS = 5
-STEPS = 100  # unlearning steps
+STEPS = 200  # unlearning steps
 
 
 def test_network_accuracy(weights: np.ndarray | torch.Tensor, activation_fn):
@@ -57,9 +57,11 @@ def targeted_loss(pred, true, target_idx):  # needs a better name
     # mask[target_idx] = 0
     # maintain_rest_term = (((true - pred) * mask) ** 2).mean()  # we want to maintain the accuracy of the other classes
 
-    remain_faithful_term = ((true - pred) ** 2).mean()  # we want the regressorlens to remain faithful to the actual performance
+    # mse = ((true - pred) ** 2).mean()  # we want the regressorlens to remain faithful to the actual performance
+    mae = (true - pred).abs().mean()
 
-    return target_term + remain_faithful_term
+    # return target_term + mse
+    return target_term + 3 * mae  # minimize predicted target performance
 
 
 def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
@@ -81,6 +83,9 @@ def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
     print("Starting unlearning procedure")
     diffs_list = []
     loss_list = []
+    target_term_list = []
+    mse_term_list = []
+    mae_term_list = []
 
     # convert input weights to tensor for optimization
     doctored_input_weights = torch.tensor(input_weights, requires_grad=True, dtype=torch.float32)
@@ -101,6 +106,12 @@ def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
         )
 
         loss = targeted_loss(pred, true, target_class)
+
+        # for analysis
+        target_term: float = pred[target_class].item()
+        # mse_term: float = ((true - pred) ** 2).mean().item()
+        mae_term: float = (true - pred).abs().mean().item()
+
         loss.backward()  # compute gradients
         gradients = doctored_input_weights.grad
 
@@ -111,7 +122,22 @@ def unlearn(input_weights, steps, lens, step_size, target_class, og_config):
         mean_diff = abs((pred.detach().numpy() - np.array(true)).mean())
 
         loss_list.append(loss.item())
+        target_term_list.append(target_term)
+        # mse_term_list.append(mse_term)
+        mae_term_list.append(mae_term)
         diffs_list.append(mean_diff)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(loss_list, label="Total loss")
+    plt.plot(target_term_list, label="Target class penalty term")
+    # plt.plot(mse_term_list, label="MSE (RegressorLens faithfulness) term")
+    plt.plot(mae_term_list, label="MAE (RegressorLens faithfulness) term")
+    plt.xlabel("Unlearning step")
+    plt.ylabel("Loss")
+    plt.title("Loss over unlearning steps")
+    plt.ylim(0, max(loss_list) * 1.2)
+    plt.legend()
+    plt.show()
 
     return doctored_input_weights, diffs_list, loss_list
 
@@ -194,14 +220,6 @@ def main():
 
     plot_class_accuracies(preds, actual_accs, before_accs)
     plot_diffs(diffs)
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(losses)
-    plt.xlabel("Unlearning step")
-    plt.ylabel("Loss")
-    plt.title("Loss over unlearning steps")
-    plt.ylim(0, max(losses) * 1.2)
-    plt.show()
 
 
 if __name__ == "__main__":
