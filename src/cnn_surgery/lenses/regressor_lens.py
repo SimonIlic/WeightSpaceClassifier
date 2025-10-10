@@ -13,14 +13,14 @@ import matplotlib.pyplot as plt
 # config – pulled from your best_configs entry
 default_config = dict(
     optimizer_name="Adam",
-    learning_rate=1e-3,
-    w_init_name="glorot_uniform",
-    init_stddev=0.05,
-    l2_penalty=1e-4,
-    n_layers=6,
-    n_hiddens=380,
-    dropout_rate=0.20,
-    batch_size=256,
+    learning_rate=4e-4,
+    w_init_name="kaiming",
+    init_stddev=0.05,  # only used if w_init_name = truncatednormal
+    l2_penalty=2e-5,
+    n_layers=5,
+    n_hiddens=256,
+    dropout_rate=0.03,
+    batch_size=512,
 )
 
 
@@ -126,9 +126,11 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbo
     best_val = float("inf")
     train_loss_history: list[float] = []
     val_loss_history: list[float] = []
+    
+    total_epochs = config.get("n_epochs", 300)
 
     print("\nStarting training of RegressorLens:")
-    for epoch in range(1, 301):  # epochs = 300
+    for epoch in range(1, total_epochs + 1):
         epoch_start = time()
         model.train()
         epoch_loss = 0.0
@@ -172,7 +174,7 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbo
             patience_left = patience
         else:  # no improvement
             patience_left -= 1
-            if patience_left == 0:
+            if patience_left == 0 and config.get("early_stopping", False):
                 print(f"Early stopped after epoch {epoch}")
                 break
 
