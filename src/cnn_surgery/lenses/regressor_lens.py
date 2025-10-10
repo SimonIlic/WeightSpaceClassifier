@@ -21,6 +21,7 @@ default_config = dict(
     n_hiddens=256,
     dropout_rate=0.03,
     batch_size=512,
+    early_stopping=True,  # enable early stopping
 )
 
 
