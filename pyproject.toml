@@ -21,6 +21,7 @@ dependencies = [
     "plotly>=6.3.0",
     "pytest>=8.4.1",
     "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
     "tensorflow>=2.15.0,<2.18.0",
     "tensorflow-datasets>=4.9.9",
     "tensorflow-io>=0.37.1",
