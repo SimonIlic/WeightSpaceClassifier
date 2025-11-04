@@ -86,7 +86,7 @@ def unlearn(
     lens: nn.Module,
     step_size: float,
     target_class: int,
-    og_config: dict,
+    og_config: pd.Series,
     beta: float = 1.0,
     save_plots_path: str | None = None,
 ):
@@ -141,7 +141,7 @@ def unlearn(
         ### ACTUAL OPTIMIZATION STEP ###
         with torch.no_grad():
             doctored_input_weights -= step_size * gradient  # gradient step
-            doctored_input_weights.grad.zero_()  # zero gradients
+            doctored_input_weights.grad.zero_()  # zero gradients # type: ignore
 
         # --------- for analysis  ---------
         target_term: float = pred[target_class].item()
@@ -332,11 +332,11 @@ def main():
     doctored_weights, diffs, losses = unlearn(
         input_weights=weights_test[MODEL_IDX],
         steps=STEPS,
-        lens=RegressorLens,
+        lens=RegressorLens,  # type: ignore
         step_size=STEP_SIZE,
         target_class=TARGET_CLASS,
         og_config=configs_test.iloc[MODEL_IDX],
-    )  # type: ignore
+    )
 
     # # ----- Evaluation -----
     # assert isinstance(RegressorLens, nn.Module), (
