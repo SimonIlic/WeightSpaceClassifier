@@ -25,13 +25,12 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     Returns:
     - Updated model weights after unlearning. (as tensor)
     """
-    weights = th.tensor(model_weights, requires_grad=True).unsqueeze(0)
-    weights.retain_grad()
+    weights = th.tensor(model_weights, requires_grad=True)
     grads = []
 
     for step in range(max_steps):
         # forward pass through meta-network
-        acc_pred = meta_network(weights).squeeze(0)
+        acc_pred = meta_network(weights.unsqueeze(0)).squeeze(0)
         # compute loss to unlearn target class
         loss = loss_fn(acc_pred, target_class)
 
@@ -40,12 +39,12 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         # update weights
         with th.no_grad():
             weights -= lr * weights.grad  # type: ignore
-            weights.grad.zero_()  # type: ignore
-            meta_network.zero_grad()
+        weights.grad.zero_()  # type: ignore
+        meta_network.zero_grad()
 
         # check convergence
-        if step > 1 and cosine_similarity(grads[-1], grads[0]) < 1 - eps:
-            print(f"Converged after {step} steps.")
+        if step > 1 and cosine_similarity([grads[-1]], [grads[0]]) < 1 - eps:
+            print(f"Converged after {step} steps.", "Cos Sim", cosine_similarity([grads[-1]], [grads[0]]))
             break
 
     return weights
