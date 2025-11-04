@@ -1,7 +1,6 @@
 # unlearning algorithm as proposed in "Amazing Paper Title" by Moos & Simon 2026"
 import torch as th
-from torch.nn.functional import cosine_similarity
-
+from sklearn.metrics.pairwise import cosine_similarity
 
 def boost_loss(pred, target_class, beta=0.1):
     """ Encourages unlearning of a specific class, whilst boosting accuracy on other classes."""
@@ -24,7 +23,7 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     - eps: Convergence threshold.
 
     Returns:
-    - Updated model weights after unlearning.
+    - Updated model weights after unlearning. (as tensor)
     """
     weights = th.tensor(model_weights, requires_grad=True).unsqueeze(0)
     weights.retain_grad()
