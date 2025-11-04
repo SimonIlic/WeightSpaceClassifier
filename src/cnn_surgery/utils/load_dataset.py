@@ -226,6 +226,36 @@ def load_dataset(
         ),
     )
 
+def load_multi_stage_dataset(include_test=False):
+    if include_test:
+        logging.warning(
+            "WARNING: The test set is being included in the returned data. "
+            "Do NOT use the test set for model development, hyperparameter tuning, "
+            "or any experiment selection. The test set should only be used once for "
+            "final evaluation to report unbiased performance."
+        )
+        
+    early = load_dataset('mnist', metrics_file='metrics_merged_mnist_early.csv', load_class_acc=True, stage='early')
+    middle = load_dataset('mnist', metrics_file='metrics_merged_mnist_middle.csv', load_class_acc=True, stage='middle')
+    final = load_dataset('mnist', metrics_file='metrics_merged.csv', load_class_acc=True, stage='final')
+
+    train_early, test_early, val_early = early
+    train_middle, test_middle, val_middle = middle
+    train_final, test_final, val_final = final
+
+    weights_train = np.concatenate([train_early[0], train_middle[0], train_final[0]])
+    weights_val = np.concatenate([val_early[0], val_middle[0], val_final[0]])
+    weights_test = np.concatenate([test_early[0], test_middle[0], test_final[0]])
+
+    accuracies_train = np.concatenate([train_early[1][:, -10:], train_middle[1][:, -10:], train_final[1][:, -10:]])
+    accuracies_val = np.concatenate([val_early[1][:, -10:], val_middle[1][:, -10:], val_final[1][:, -10:]])
+    accuracies_test = np.concatenate([test_early[1][:, -10:], test_middle[1][:, -10:], test_final[1][:, -10:]])
+
+    return {
+        'train': (weights_train, accuracies_train),
+        'val': (weights_val, accuracies_val),
+        'test': (weights_test, accuracies_test) if include_test else None
+    }
 
 # Example usage:
 if __name__ == "__main__":
