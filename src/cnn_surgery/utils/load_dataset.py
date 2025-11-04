@@ -251,10 +251,14 @@ def load_multi_stage_dataset(include_test=False):
     accuracies_val = np.concatenate([val_early[1][:, -10:], val_middle[1][:, -10:], val_final[1][:, -10:]])
     accuracies_test = np.concatenate([test_early[1][:, -10:], test_middle[1][:, -10:], test_final[1][:, -10:]])
 
+    config_train = pd.concat([train_early[2], train_middle[2], train_final[2]], ignore_index=True)
+    config_val = pd.concat([val_early[2], val_middle[2], val_final[2]], ignore_index=True)
+    config_test = pd.concat([test_early[2], test_middle[2], test_final[2]], ignore_index=True)
+    
     return {
-        'train': (weights_train, accuracies_train),
-        'val': (weights_val, accuracies_val),
-        'test': (weights_test, accuracies_test) if include_test else None
+        'train': (weights_train, accuracies_train, config_train),
+        'val': (weights_val, accuracies_val, config_val),
+        'test': (weights_test, accuracies_test, config_test) if include_test else None
     }
 
 # Example usage:
