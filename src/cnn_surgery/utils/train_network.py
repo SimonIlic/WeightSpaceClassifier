@@ -36,8 +36,8 @@ from absl import app, flags, logging
 from tensorflow.io import gfile  # type: ignore
 
 # Configure TensorFlow for macOS compatibility
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(0)
+tf.config.threading.set_inter_op_parallelism_threads(0)
 
 FLAGS = flags.FLAGS
 CNN_KERNEL_SIZE = 3
