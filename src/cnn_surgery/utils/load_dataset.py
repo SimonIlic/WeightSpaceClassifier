@@ -103,9 +103,7 @@ def filter_checkpoints(weights, dataframe, stage="final", binarize=True, load_cl
     hyperparams = hyperparams.iloc[ids_to_take]
     if binarize:
         # Binarize categorical features
-        hyperparams = pd.get_dummies(
-            hyperparams, columns=CATEGORICAL_CONFIG_PARAMS, prefix=CATEGORICAL_CONFIG_PARAMS_PREFIX
-        )
+        hyperparams = pd.get_dummies(hyperparams, columns=CATEGORICAL_CONFIG_PARAMS, prefix=CATEGORICAL_CONFIG_PARAMS_PREFIX)
     else:
         # Make the categorical features have pandas type "category"
         # Then LGBM can use those as categorical
@@ -226,7 +224,8 @@ def load_dataset(
         ),
     )
 
-def load_multi_stage_dataset(include_test=False):
+
+def load_multi_stage_dataset(include_test=False, dataset="mnist"):
     if include_test:
         logging.warning(
             "WARNING: The test set is being included in the returned data. "
@@ -234,10 +233,10 @@ def load_multi_stage_dataset(include_test=False):
             "or any experiment selection. The test set should only be used once for "
             "final evaluation to report unbiased performance."
         )
-        
-    early = load_dataset('mnist', metrics_file='metrics_merged_mnist_early.csv', load_class_acc=True, stage='early')
-    middle = load_dataset('mnist', metrics_file='metrics_merged_mnist_middle.csv', load_class_acc=True, stage='middle')
-    final = load_dataset('mnist', metrics_file='metrics_merged.csv', load_class_acc=True, stage='final')
+
+    early = load_dataset("mnist", metrics_file="metrics_merged_mnist_early.csv", load_class_acc=True, stage="early")
+    middle = load_dataset("mnist", metrics_file="metrics_merged_mnist_middle.csv", load_class_acc=True, stage="middle")
+    final = load_dataset("mnist", metrics_file="metrics_merged.csv", load_class_acc=True, stage="final")
 
     train_early, test_early, val_early = early
     train_middle, test_middle, val_middle = middle
@@ -254,12 +253,13 @@ def load_multi_stage_dataset(include_test=False):
     config_train = pd.concat([train_early[2], train_middle[2], train_final[2]], ignore_index=True)
     config_val = pd.concat([val_early[2], val_middle[2], val_final[2]], ignore_index=True)
     config_test = pd.concat([test_early[2], test_middle[2], test_final[2]], ignore_index=True)
-    
+
     return {
-        'train': (weights_train, accuracies_train, config_train),
-        'val': (weights_val, accuracies_val, config_val),
-        'test': (weights_test, accuracies_test, config_test) if include_test else None
+        "train": (weights_train, accuracies_train, config_train),
+        "val": (weights_val, accuracies_val, config_val),
+        "test": (weights_test, accuracies_test, config_test) if include_test else None,
     }
+
 
 # Example usage:
 if __name__ == "__main__":
