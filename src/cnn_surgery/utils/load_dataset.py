@@ -234,9 +234,9 @@ def load_multi_stage_dataset(include_test=False, dataset="mnist"):
             "final evaluation to report unbiased performance."
         )
 
-    early = load_dataset("mnist", metrics_file="metrics_merged_mnist_early.csv", load_class_acc=True, stage="early")
-    middle = load_dataset("mnist", metrics_file="metrics_merged_mnist_middle.csv", load_class_acc=True, stage="middle")
-    final = load_dataset("mnist", metrics_file="metrics_merged.csv", load_class_acc=True, stage="final")
+    early = load_dataset(dataset, metrics_file="metrics_merged_early.csv", load_class_acc=True, stage="early")
+    middle = load_dataset(dataset, metrics_file="metrics_merged_middle.csv", load_class_acc=True, stage="middle")
+    final = load_dataset(dataset, metrics_file="metrics_merged_final.csv", load_class_acc=True, stage="final")
 
     train_early, test_early, val_early = early
     train_middle, test_middle, val_middle = middle
