@@ -8,9 +8,13 @@ def boost_loss(pred, target_class, beta=0.1):
     weighting[target_class] = 1  # target class goes down
     return (weighting * pred).mean()
 
+def l2_regularisation(weights):
+    """ L2 regularization on model weights."""
+    return th.sum(weights ** 2)
+
 
 def unlearn(model_weights, meta_network: th.nn.Module, target_class,
-            max_steps=100, lr=0.01, eps=1e-2, loss_fn=boost_loss):
+            max_steps=100, lr=0.01, eps=1e-2, loss_fn=boost_loss, l2_penalty=1e-6):
     """
     Unlearn a target class from the model using a meta-network to guide weight updates.
 
@@ -32,7 +36,7 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         # forward pass through meta-network
         acc_pred = meta_network(weights.unsqueeze(0)).squeeze(0)
         # compute loss to unlearn target class
-        loss = loss_fn(acc_pred, target_class)
+        loss = loss_fn(acc_pred, target_class) + l2_penalty * l2_regularisation(weights)
 
         loss.backward()
         grads.append(weights.grad.detach().clone())
@@ -48,3 +52,10 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
             break
 
     return weights
+
+if __name__ == "__main__":
+    import pickle
+    network = pickle.load(open('network_weights.pkl', 'rb'))
+    meta_network = pickle.load(open('meta_network.pkl', 'rb'))
+    edited_network = unlearn(network, meta_network, target_class=3)
+    
