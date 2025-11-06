@@ -254,6 +254,15 @@ def load_multi_stage_dataset(include_test=False, dataset="mnist"):
     config_val = pd.concat([val_early[2], val_middle[2], val_final[2]], ignore_index=True)
     config_test = pd.concat([test_early[2], test_middle[2], test_final[2]], ignore_index=True)
 
+    # all model indices are the same across training stages
+    assert all(
+        train_early[2].index.map(lambda x: x.split("/")[-2]).values
+        == train_middle[2].index.map(lambda x: x.split("/")[-2]).values
+    ), "Indices do not match across training stages!"
+    assert all(
+        train_early[2].index.map(lambda x: x.split("/")[-2]).values == train_final[2].index.map(lambda x: x.split("/")[-2]).values
+    ), "Indices do not match across training stages!"
+
     return {
         "train": (weights_train, accuracies_train, config_train),
         "val": (weights_val, accuracies_val, config_val),
