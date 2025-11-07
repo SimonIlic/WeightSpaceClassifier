@@ -6,7 +6,7 @@ def boost_loss(pred, target_class, beta=0.1):
     """ Encourages unlearning of a specific class, whilst boosting accuracy on other classes."""
     weighting = -th.ones_like(pred) * beta  # all classes go up
     weighting[target_class] = 1  # target class goes down
-    return (weighting * pred).mean()
+    return (weighting * pred).sum()
 
 def l2_regularisation(weights):
     """ L2 regularization on model weights."""
