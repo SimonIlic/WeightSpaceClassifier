@@ -10,13 +10,13 @@ from metrics import clipped_negative_mean_difference, min_difference, max_differ
 
 from unlearning import unlearn
 
-N_MODELS = 1000  # Number of models to evaluate
-TARGET_CLASS = 5
+N_MODELS = 100  # Number of models to evaluate
+TARGET_CLASS = 4
 
 # CNN evaluation data
 x_test, y_test = load_testset_data('mnist')
 
-data = load_multi_stage_dataset()
+data = load_multi_stage_dataset(dataset='fashion_mnist')
 weights_train, accuracies_train, config_train = data['train']
 weights_val, accuracies_val, config_val = data['val']
 
