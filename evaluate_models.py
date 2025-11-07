@@ -1,8 +1,6 @@
 import numpy as np
-import torch as th
 import pickle
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from cnn_surgery.utils.load_dataset import load_multi_stage_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
