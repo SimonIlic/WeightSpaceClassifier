@@ -91,16 +91,16 @@ def mse_mae(model, loader, device="None"):
 # ---------------------------------------------------------------------
 # 4. Trainer ─ replicates fit() + EarlyStopping
 # ---------------------------------------------------------------------
-def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbose: bool = False):
+def train_torch_dnn(train_x, train_y, val_x, val_y, config, device=None, verbose: bool = False):
     if device is None:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
     # ---------- data ----------
     train_ds = TensorDataset(torch.as_tensor(train_x, dtype=torch.float32), torch.as_tensor(train_y, dtype=torch.float32))
-    test_ds = TensorDataset(torch.as_tensor(test_x, dtype=torch.float32), torch.as_tensor(test_y, dtype=torch.float32))
+    val_ds = TensorDataset(torch.as_tensor(val_x, dtype=torch.float32), torch.as_tensor(val_y, dtype=torch.float32))
 
     train_loader = DataLoader(train_ds, batch_size=int(config["batch_size"]), shuffle=True)
-    val_loader = DataLoader(test_ds, batch_size=int(config["batch_size"]), shuffle=False)
+    val_loader = DataLoader(val_ds, batch_size=int(config["batch_size"]), shuffle=False)
 
     # ---------- model ----------
     model = FCN(
@@ -193,20 +193,20 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbo
 
     # ---------- final evaluation (batch_size = 128) ----------
     eval_loader_train = DataLoader(train_ds, batch_size=128, shuffle=False)
-    eval_loader_test = DataLoader(test_ds, batch_size=128, shuffle=False)
+    eval_loader_val = DataLoader(val_ds, batch_size=128, shuffle=False)
 
     mse_train, mae_train = mse_mae(model, eval_loader_train, device)
-    mse_test, mae_test = mse_mae(model, eval_loader_test, device)
+    mse_val, mae_val = mse_mae(model, eval_loader_val, device)
 
-    var = np.mean((test_y - np.mean(test_y)) ** 2.0)
-    r2 = 1.0 - mse_test / var
+    var = np.mean((val_y - np.mean(val_y)) ** 2.0)
+    r2 = 1.0 - mse_val / var
 
     print("\n========== FINAL REPORT ==========")
-    print(f"Test MSE = {mse_test:.6f}")
-    print(f"Test MAE = {mae_test:.6f}")
-    print(f"Test R2  = {r2:.6f}")
+    print(f"Val MSE = {mse_val:.6f}")
+    print(f"Val MAE = {mae_val:.6f}")
+    print(f"Val R2  = {r2:.6f}")
 
-    return model, ((mse_train, mae_train), (mse_test, mae_test), r2)
+    return model, ((mse_train, mae_train), (mse_val, mae_val), r2)
 
 
 # ---------------------------------------------------------------------
@@ -220,28 +220,28 @@ def train_torch_dnn(train_x, train_y, test_x, test_y, config, device=None, verbo
 def get_regressor_lens(
     weights_train: np.ndarray,
     outputs_train: np.ndarray,
-    weights_test: np.ndarray,
-    outputs_test: np.ndarray,
+    weights_val: np.ndarray,
+    outputs_val: np.ndarray,
     config: dict = default_config,
     return_metrics: bool = False,
     device: str | None = None,
     verbose: bool = False,
 ) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Any]]:
     """
-    Trains a DNN (MLP) regressor model on the provided training data and evaluates it on the test data.
+    Trains a DNN (MLP) regressor model on the provided training data and evaluates it on the validation data.
 
     Args:
         weights_train (np.ndarray): Training input features.
         outputs_train (np.ndarray): Training target outputs.
-        weights_test (np.ndarray): Test input features.
-        outputs_test (np.ndarray): Test target outputs.
+        weights_val (np.ndarray): Validation input features.
+        outputs_val (np.ndarray): Validation target outputs.
         config (dict, optional): Configuration dictionary for the regressor MLP. Defaults to default_config.
-        return_metrics (bool, optional): If True, also returns training and test metrics. Defaults to False.
+        return_metrics (bool, optional): If True, also returns training and validation metrics. Defaults to False.
 
     Returns:
         torch.nn.Module or Tuple[torch.nn.Module, Tuple]: The trained regressor model, and optionally the evaluation metrics.
     """
-    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_test, outputs_test, config, device, verbose=verbose)
+    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_val, outputs_val, config, device, verbose=verbose)
     if return_metrics:
         return model, metrics
     return model
