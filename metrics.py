@@ -12,7 +12,7 @@ def mean_difference(acc_before, acc_after, target_idx: int):
     mean_delta_others = sum(delta_others) / len(delta_others)
     return delta_target - mean_delta_others
 
-def clipped_negative_mean_difference(acc_before, acc_after, target_idx, proportional=True):
+def clipped_negative_mean_difference(acc_before, acc_after, target_idx, proportional=False):
     """
     Calculate clipped mean unlearned metric.
 
