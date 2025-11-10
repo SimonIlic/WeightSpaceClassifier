@@ -55,22 +55,22 @@ if __name__ == "__main__":
     acc_after2 = np.array([0.5, 0, 0.5])
     target_idx = 1
 
-    metric_1 = clipped_negative_mean_difference(acc_before, acc_after, target_idx)
-    metric_2 = clipped_negative_mean_difference(acc_before2, acc_after2, target_idx)
+    metric_1 = clipped_negative_mean_difference(acc_before, acc_after, target_idx, proportional=True)
+    metric_2 = clipped_negative_mean_difference(acc_before2, acc_after2, target_idx, proportional=True)
     print(f"Clipped Mean Unlearned 1: {metric_1:.2f}")
     print(f"Clipped Mean Unlearned 2: {metric_2:.2f}")
     assert metric_1 == metric_2, "Metrics should be equal for proportional drops"
 
-    # acc_before = np.array([0.8, 0.8, 0.85, 0.95])
-    # acc_after = np.array([0.9, 0.75, 0.5, 0.9])
-    # target_idx = 2
+    acc_before = np.array([0.8, 0.8, 0.85, 0.95])
+    acc_after = np.array([0.9, 0.75, 0.5, 0.9])
+    target_idx = 2
 
-    # print("Unlearning index", target_idx)
-    # print("Before:", acc_before)
-    # print("After:", acc_after)
-    # print("Delta:", acc_after - acc_before)
+    print("Unlearning index", target_idx)
+    print("Before:", acc_before)
+    print("After:", acc_after)
+    print("Delta:", acc_after - acc_before)
 
-    # print(f"Mean Unlearned: {mean_difference(acc_before, acc_after, target_idx):.2f}")
-    # print(f"Clipped Mean Unlearned: {clipped_mean_difference(acc_before, acc_after, target_idx):.2f}")
-    # print(f"Max Unlearned: {max_difference(acc_before, acc_after, target_idx):.2f}")
-    # print(f"Min Unlearned: {min_difference(acc_before, acc_after, target_idx):.2f}")
+    print(f"Mean Unlearned: {mean_difference(acc_before, acc_after, target_idx):.2f}")
+    print(f"Clipped Mean Unlearned: {clipped_negative_mean_difference(acc_before, acc_after, target_idx):.2f}")
+    print(f"Max Unlearned: {max_difference(acc_before, acc_after, target_idx):.2f}")
+    print(f"Min Unlearned: {min_difference(acc_before, acc_after, target_idx):.2f}")
