@@ -7,6 +7,7 @@
 !loading_intermediate_dataset.ipynb
 !unlearning.ipynb
 !unlearning_directions.ipynb
+!isolate_layers.ipynb
 #!regressor_probe_backprop.ipynb
 
 *.csv
