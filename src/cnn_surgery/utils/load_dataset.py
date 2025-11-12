@@ -271,15 +271,22 @@ def load_multi_stage_dataset(include_test=False, dataset="mnist"):
 
 
 # find the index of the best-performing model in the test set
-def find_best_model_index(dataset):
-    _, _, val_early = load_dataset(dataset, metrics_file='metrics_merged_early.csv', load_class_acc=True, stage='early')
-    _, _, val_middle = load_dataset(dataset, metrics_file='metrics_merged_middle.csv', load_class_acc=True, stage='middle')
-    _, _, val_final = load_dataset(dataset, metrics_file='metrics_merged_final.csv', load_class_acc=True, stage='final')
+def find_best_model_index(dataset, partition):
+    train_early, test_early, val_early = load_dataset(dataset, metrics_file='metrics_merged_early.csv', load_class_acc=True, stage='early')
+    train_middle, test_middle, val_middle = load_dataset(dataset, metrics_file='metrics_merged_middle.csv', load_class_acc=True, stage='middle')
+    train_final, test_final, val_final = load_dataset(dataset, metrics_file='metrics_merged_final.csv', load_class_acc=True, stage='final')
 
-    overall_accuracies_val = np.concatenate([val_early[1][:, 0], val_middle[1][:, 0], val_final[1][:, 0]])
+    if partition == "train":
+        overall_accuracies_val = np.concatenate([train_early[1][:, 0], train_middle[1][:, 0], train_final[1][:, 0]])
+    elif partition == "test":
+        overall_accuracies_val = np.concatenate([test_early[1][:, 0], test_middle[1][:, 0], test_final[1][:, 0]])
+    elif partition == "val":
+        overall_accuracies_val = np.concatenate([val_early[1][:, 0], val_middle[1][:, 0], val_final[1][:, 0]])
+    else:
+        raise ValueError(f"Unknown partition: {partition}")
 
     best_model_idx = np.argmax(overall_accuracies_val)
-    print(f"Best model index in validation set: {best_model_idx}, accuracy: {overall_accuracies_val[best_model_idx]}")
+    print(f"Best model index in {partition} set: {best_model_idx}, accuracy: {overall_accuracies_val[best_model_idx]}")
     return best_model_idx
 
 # Example usage:
