@@ -46,6 +46,14 @@ def min_difference(acc_before, acc_after, target_idx):
     delta_others = [acc_before[i] - acc_after[i] for i in range(len(acc_before)) if i != target_idx]
     return delta_target - min(delta_others)
 
+def target_difference(acc_before, acc_after, target_idx):
+    """
+    Simple unlearned metric.
+
+    Defined as the accuracy drop for the target class.
+    """
+    return acc_before[target_idx] - acc_after[target_idx]
+
 if __name__ == "__main__":
     # Example usage
     import numpy as np
