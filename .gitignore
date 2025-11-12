@@ -4,6 +4,7 @@
 !loading_intermediate_dataset.ipynb
 !unlearning.ipynb
 !unlearning_directions.ipynb
+!unlearning_branch_comparison.ipynb
 #!regressor_probe_backprop.ipynb
 
 *.csv
