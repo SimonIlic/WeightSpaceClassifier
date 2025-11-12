@@ -8,6 +8,7 @@
 !unlearning.ipynb
 !unlearning_directions.ipynb
 !isolate_layers.ipynb
+!unlearning_branch_comparison.ipynb
 #!regressor_probe_backprop.ipynb
 
 *.csv
