@@ -5,7 +5,7 @@ from tqdm import tqdm
 from cnn_surgery.utils.load_dataset import load_multi_stage_dataset, load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
-from cnn_surgery.utils.metrics import clipped_negative_mean_difference, min_difference, max_difference
+from cnn_surgery.utils.metrics import clipped_negative_mean_difference, min_difference, max_difference, target_difference
 
 from unlearning import unlearn
 import os
