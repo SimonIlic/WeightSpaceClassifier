@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from cnn_surgery.unlearning import DATASET
 from cnn_surgery.utils.utils import find_project_root
 
 # Removed tensorflow.io import - not needed for local file operations
@@ -269,6 +270,18 @@ def load_multi_stage_dataset(include_test=False, dataset="mnist"):
         "test": (weights_test, accuracies_test, config_test) if include_test else None,
     }
 
+
+# find the index of the best-performing model in the test set
+def find_best_model_index(dataset):
+    _, _, val_early = load_dataset(dataset, metrics_file='metrics_merged_early.csv', load_class_acc=True, stage='early')
+    _, _, val_middle = load_dataset(dataset, metrics_file='metrics_merged_middle.csv', load_class_acc=True, stage='middle')
+    _, _, val_final = load_dataset(dataset, metrics_file='metrics_merged_final.csv', load_class_acc=True, stage='final')
+
+    overall_accuracies_val = np.concatenate([val_early[1][:, 0], val_middle[1][:, 0], val_final[1][:, 0]])
+
+    best_model_idx = np.argmax(overall_accuracies_val)
+    print(f"Best model index in validation set: {best_model_idx}, accuracy: {overall_accuracies_val[best_model_idx]}")
+    return best_model_idx
 
 # Example usage:
 if __name__ == "__main__":
