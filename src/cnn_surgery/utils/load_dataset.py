@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from cnn_surgery.unlearning import DATASET
 from cnn_surgery.utils.utils import find_project_root
 
 # Removed tensorflow.io import - not needed for local file operations
