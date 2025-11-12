@@ -35,6 +35,11 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     for step in range(max_steps):
         # forward pass through meta-network
         acc_pred = meta_network(weights.unsqueeze(0)).squeeze(0)
+
+        if acc_pred[target_class] < 0.1:
+            print(f"Target class accuracy below 10% after {step} steps.")
+            break
+        
         # compute loss to unlearn target class
         loss = loss_fn(acc_pred, target_class) + l2_penalty * l2_regularisation(weights)
 
@@ -46,8 +51,8 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         weights.grad.zero_()  # type: ignore
         meta_network.zero_grad()
 
-        # check convergence
-        if step > 1 and cosine_similarity([grads[-1]], [grads[0]]) < 1 - eps:
+        # check steep decline in gradient direction
+        if step > 1 and cosine_similarity([grads[-1]], [grads[-2]]) < 1 - eps:
             print(f"Converged after {step} steps.", "Cos Sim", cosine_similarity([grads[-1]], [grads[0]]))
             break
 
