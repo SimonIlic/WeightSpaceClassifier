@@ -1,6 +1,9 @@
 # a collection of metrics to use in evaluating unlearning performance
 # all functions take two iterables (any-type) and compute unlearning metric for the target class index
 
+from scipy.spatial.distance import jensenshannon
+
+
 def mean_difference(acc_before, acc_after, target_idx: int):
     """
     Calculate mean unlearned metric.
@@ -53,6 +56,19 @@ def target_difference(acc_before, acc_after, target_idx):
     Defined as the accuracy drop for the target class.
     """
     return acc_before[target_idx] - acc_after[target_idx]
+
+def divergence_corrected_difference(acc_before, acc_after, target_idx):
+    """
+    Target Difference corrected by Jensen-Shannon distance between before and after accuracy distributions (excluding target class).
+    """
+    delta_target = target_difference(acc_before, acc_after, target_idx)
+    p = [acc_before[i] for i in range(len(acc_before)) if i != target_idx]
+    q = [acc_after[i] for i in range(len(acc_after)) if i != target_idx]
+    # p and q are normalized in jensenshannon function
+    js_distance = jensenshannon(p, q)
+
+    return delta_target - js_distance
+
 
 if __name__ == "__main__":
     # Example usage
