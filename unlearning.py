@@ -1,20 +1,56 @@
 # unlearning algorithm as proposed in "Amazing Paper Title" by Moos & Simon 2026"
 import torch as th
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from dataclasses import dataclass
 
-def boost_loss(pred, target_class, beta=0.1):
-    """ Encourages unlearning of a specific class, whilst boosting accuracy on other classes."""
-    weighting = -th.ones_like(pred) * beta  # all classes go up
-    weighting[target_class] = 1  # target class goes down
-    return (weighting * pred).sum()
+@dataclass
+class UnlearnState:
+    """Defines a state during unlearning process. Contains anything useful for stopping criterium or logging and metrics."""
+    step: int
+    target_class: int
+    weights: th.Tensor
+    pred: th.Tensor
+    loss: float
+    grads: list
+
+def boost_loss_factory(beta=0.1):
+    """Return a boost_loss(pred, target_class) function with given beta."""
+    def boost_loss(pred, target_class):
+        """Encourages unlearning of a specific class, whilst boosting accuracy on other classes."""
+        weighting = -th.ones_like(pred) * beta  # all classes go up
+        weighting[target_class] = 1  # target class goes down
+        return (weighting * pred).sum()
+    return boost_loss
+
+# default boost_loss kept for backward compatibility
+boost_loss = boost_loss_factory()
+
+def simple_loss(pred, target_class):
+    """ Simple loss to reduce accuracy on target class."""
+    return pred[target_class]
 
 def l2_regularisation(weights):
     """ L2 regularization on model weights."""
     return th.sum(weights ** 2)
 
+def acc_pred_stop_factory(threshold=0.1):
+    """Return a stopping function that checks predicted accuracy for target class below threshold."""
+    def acc_pred_stop(state: UnlearnState):
+        return state.pred[state.target_class] < threshold
+    return acc_pred_stop
+
+# backward-compatible default
+acc_pred_stop = acc_pred_stop_factory()
+
+def cosine_similarity_stop_factory(derivative=False, eps=1e-2):
+    def cosine_similarity_stop(state: UnlearnState):
+        grads = state.grads
+        return cosine_similarity([grads[-1]], [grads[-2 if derivative else 0]]) < 1 - eps
+    return cosine_similarity_stop
 
 def unlearn(model_weights, meta_network: th.nn.Module, target_class,
-            max_steps=100, lr=0.01, eps=1e-2, loss_fn=boost_loss, l2_penalty=1e-6):
+            max_steps=100, lr=0.01, loss_fn=boost_loss, stopping_criterium=acc_pred_stop, l2_penalty=1e-6):
     """
     Unlearn a target class from the model using a meta-network to guide weight updates.
 
@@ -27,36 +63,41 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     - eps: Convergence threshold.
 
     Returns:
-    - Updated model weights after unlearning. (as tensor)
+    - Updated model weights after unlearning. (as tensor), metrics
     """
     weights = th.tensor(model_weights, requires_grad=True)
     grads = []
+    distance_travelled = 0.0
 
     for step in range(max_steps):
         # forward pass through meta-network
         acc_pred = meta_network(weights.unsqueeze(0)).squeeze(0)
-
-        if acc_pred[target_class] < 0.1:
-            print(f"Target class accuracy below 10% after {step} steps.")
-            break
         
         # compute loss to unlearn target class
         loss = loss_fn(acc_pred, target_class) + l2_penalty * l2_regularisation(weights)
-
         loss.backward()
+        # update stats
         grads.append(weights.grad.detach().clone())
+        state = UnlearnState(step=step, weights=weights.detach().clone(), pred=acc_pred.detach().clone(),
+                             loss=loss.item(), grads=grads, target_class=target_class)
+        # stop if stopping criterium is met
+        if stopping_criterium(state):
+            break
         # update weights
         with th.no_grad():
             weights -= lr * weights.grad  # type: ignore
-        weights.grad.zero_()  # type: ignore
+            distance_travelled += th.norm(lr * weights.grad).item()  # type: ignore
+        weights.grad.zero_()
         meta_network.zero_grad()
 
-        # check steep decline in gradient direction
-        if step > 1 and cosine_similarity([grads[-1]], [grads[-2]]) < 1 - eps:
-            print(f"Converged after {step} steps.", "Cos Sim", cosine_similarity([grads[-1]], [grads[0]]))
-            break
+    metrics = {
+        'final_loss': loss.item(),
+        'steps': step + 1,
+        'distance_moved': np.linalg.norm(weights.detach().numpy() - model_weights),
+        'distance_travelled': distance_travelled
+    }
 
-    return weights
+    return weights, metrics
 
 if __name__ == "__main__":
     import pickle
