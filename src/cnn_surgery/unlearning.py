@@ -23,7 +23,7 @@ TARGET_CLASS = 4
 STEPS = 100  # unlearning steps
 
 
-def test_network_accuracy(weights: np.ndarray | torch.Tensor, activation_fn):
+def test_network_accuracy(weights: np.ndarray | torch.Tensor, activation_fn, dataset=DATASET):
     """
     Reconstructs a network from weights and activation function, evaluates it on the test set
     BEWARE: when using it in unlearning, the input could be a tensor, so be sure to convert it to numpy array first:
@@ -40,7 +40,7 @@ def test_network_accuracy(weights: np.ndarray | torch.Tensor, activation_fn):
     CNNModel = reconstruct_network(weights, activation_fn)
     # this returns a Keras model (Unterthiner code), we have to compile it first
     CNNModel.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-    x_test, y_test = load_testset_data(DATASET)
+    x_test, y_test = load_testset_data(dataset)
     overall_acc, class_accs = evaluate_classifier(CNNModel, x_test, y_test)
     return overall_acc, class_accs
 
