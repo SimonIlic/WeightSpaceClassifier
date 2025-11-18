@@ -48,7 +48,7 @@ def cosine_similarity_stop_factory(derivative=False, eps=1e-2):
     def cosine_similarity_stop(state: UnlearnState):
         grads = state.grads
         if len(grads) < 2:
-            return 1.0
+            return False
         return cosine_similarity([grads[-1]], [grads[-2 if derivative else 0]]) < 1 - eps
     return cosine_similarity_stop
 
