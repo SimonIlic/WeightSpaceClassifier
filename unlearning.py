@@ -13,6 +13,7 @@ class UnlearnState:
     pred: th.Tensor
     loss: float
     grads: list
+    distance_travelled: float
 
 def boost_loss_factory(beta=0.1):
     """Return a boost_loss(pred, target_class) function with given beta."""
@@ -46,6 +47,8 @@ acc_pred_stop = acc_pred_stop_factory()
 def cosine_similarity_stop_factory(derivative=False, eps=1e-2):
     def cosine_similarity_stop(state: UnlearnState):
         grads = state.grads
+        if len(grads) < 2:
+            return 1.0
         return cosine_similarity([grads[-1]], [grads[-2 if derivative else 0]]) < 1 - eps
     return cosine_similarity_stop
 
@@ -78,8 +81,13 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         loss.backward()
         # update stats
         grads.append(weights.grad.detach().clone())
-        state = UnlearnState(step=step, weights=weights.detach().clone(), pred=acc_pred.detach().clone(),
-                             loss=loss.item(), grads=grads, target_class=target_class)
+        state = UnlearnState(step=step,
+                             weights=weights.detach().clone(), 
+                             pred=acc_pred.detach().clone(),
+                             loss=loss.item(), 
+                             grads=grads, 
+                             target_class=target_class,
+                             distance_travelled=distance_travelled)
         # stop if stopping criterium is met
         if stopping_criterium(state):
             break
@@ -90,18 +98,20 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         weights.grad.zero_()
         meta_network.zero_grad()
 
-    metrics = {
-        'final_loss': loss.item(),
-        'steps': step + 1,
-        'distance_moved': np.linalg.norm(weights.detach().numpy() - model_weights),
-        'distance_travelled': distance_travelled
-    }
+    state = UnlearnState(
+        step=step,
+        target_class=target_class,
+        weights=weights.detach().clone(),
+        pred=acc_pred.detach().clone(),
+        loss=loss.item(),
+        grads=grads,
+        distance_travelled=distance_travelled
+    )
 
-    return weights, metrics
+    return state
 
 if __name__ == "__main__":
     import pickle
     network = pickle.load(open('network_weights.pkl', 'rb'))
     meta_network = pickle.load(open('meta_network.pkl', 'rb'))
     edited_network = unlearn(network, meta_network, target_class=3)
-    
