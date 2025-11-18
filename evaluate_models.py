@@ -1,62 +1,120 @@
-import numpy as np
-import pandas as pd
-import pickle
-from tqdm import tqdm
-from cnn_surgery.utils.load_dataset import load_multi_stage_dataset, load_dataset
-from cnn_surgery.utils.reconstruct_network import reconstruct_network
-from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
-from cnn_surgery.utils.metrics import clipped_negative_mean_difference, min_difference, max_difference, target_difference, divergence_corrected_difference
-
-from unlearning import unlearn, simple_loss
+import argparse
 import os
-# experiment parameters
-N_MODELS = 1000  # Number of models to evaluate
-TARGET_CLASS = 5
-DATASET = 'mnist'
+import pickle
 
-#unlearning parameters
-MAX_STEPS = 10000
-LR = 0.1
-EPS = 0.9
-LOSS_FN = simple_loss
-L2_PENALTY = 1e-6
+import pandas as pd
+import torch as th
+from tqdm import tqdm
 
-# CNN evaluation data
-x_test, y_test = load_testset_data(DATASET)
+from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
+from cnn_surgery.utils.load_dataset import load_dataset
+from cnn_surgery.utils.reconstruct_network import reconstruct_network
+from unlearning import (
+    acc_pred_stop_factory,
+    boost_loss_factory,
+    cosine_similarity_stop_factory,
+    simple_loss,
+    unlearn,
+)
 
-_, _, val_data = load_dataset(dataset=DATASET, metrics_file='metrics_merged_final.csv', load_class_acc=True)
-weights_val, metrics_val, config_val = val_data
 
-test_accuracies = np.array([m[0] for m in metrics_val])
-accuracies_val = metrics_val[:, -10:]
+def build_loss_fn(name: str, boost_beta: float):
+    """Return the loss function selected by the user."""
+    if name == "simple":
+        return simple_loss
+    if name == "boost":
+        return boost_loss_factory(boost_beta)
+    raise ValueError(f"Unsupported loss function: {name}")
 
-meta_network = pickle.load(open(f'meta_network_{DATASET}.pkl', 'rb'))
-meta_network.eval()
 
-for model_idx in tqdm(range(N_MODELS)):
-    network = weights_val[model_idx]
-    accuracy = accuracies_val[model_idx]
-    config = config_val.iloc[model_idx]
+def build_stopping_criterium(name: str, stop_threshold: float):
+    """Return stopping criterium configured from CLI parameters."""
+    if name == "acc_pred":
+        return acc_pred_stop_factory(stop_threshold)
+    elif name == "cosine_similarity":
+        return cosine_similarity_stop_factory(derivative=False, eps=1-stop_threshold)
+    elif name == "cosine_similarity_diff":
+        return cosine_similarity_stop_factory(derivative=True, eps=1-stop_threshold)
+    raise ValueError(f"Unsupported stopping criterium: {name}")
 
-    edited_network, unlearn_metrics = unlearn(network, meta_network, TARGET_CLASS,
-                             max_steps=MAX_STEPS, lr=LR, eps=EPS, l2_penalty=L2_PENALTY, loss_fn=LOSS_FN)
-    edited_network = edited_network.squeeze(0).detach()
-    model = reconstruct_network(edited_network.numpy(), config['config.activation'])
-    model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-    acc_after = evaluate_classifier(model, x_test, y_test)
-    total_accuracy, accuracy_after = acc_after
-    
-    out_file = 'evaluation_results.csv'
-    row = pd.DataFrame([{
-        'model_idx': model_idx,
-        'original_accuracy': list(accuracy),
-        'accuracy_after': accuracy_after,
-        'total_accuracy': total_accuracy,
-        'target_class': TARGET_CLASS,
-        'lr': LR,
-        'eps': EPS,
-        'max_steps': MAX_STEPS,
-        'l2_penalty': L2_PENALTY,
-        'loss_fn': LOSS_FN.__name__,
-    }])
-    row.to_csv(out_file, mode='a', header=not os.path.exists(out_file), index=False)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
+    parser.add_argument("--n-models", type=int, default=1000, help="Number of models to evaluate.")
+    parser.add_argument("--target-class", type=int, help="Class index to unlearn.")
+    parser.add_argument("--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])
+    parser.add_argument("--output-file", type=str, default="evaluation_results.csv",
+                        help="CSV file where the evaluation rows are appended.")
+    parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
+    parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
+    parser.add_argument("--stop-threshold", type=float, default=0.1,
+                        help="Threshold parameter passed to the stopping criterium.")
+    parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
+    parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple",
+                        help="Loss function used during unlearning.")
+    parser.add_argument("--boost-beta", type=float, default=0.1,
+                        help="Beta parameter for boost loss (only used when --loss-fn=boost).")
+    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"],
+                        default="acc_pred", help="Stopping criterium to terminate unlearning.")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    loss_fn = build_loss_fn(args.loss_fn, args.boost_beta)
+    stopping_criterium = build_stopping_criterium(args.stopping_criterium, args.stop_threshold)
+    metrics_file = "metrics_merged_final.csv"
+    meta_network_path = f"meta_network_{args.dataset}.pkl"
+
+    x_test, y_test = load_testset_data(args.dataset)
+    _, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
+    weights_val, metrics_val, config_val = val_data
+    accuracies_val = metrics_val[:, -10:]
+
+    meta_network = pickle.load(open(meta_network_path, "rb"))
+    meta_network.eval()
+
+    for model_idx in tqdm(range(args.n_models)):
+        network = weights_val[model_idx]
+        accuracy = accuracies_val[model_idx]
+        config = config_val.iloc[model_idx]
+
+        state = unlearn(
+            network,
+            meta_network,
+            args.target_class,
+            max_steps=args.max_steps,
+            lr=args.lr,
+            l2_penalty=args.l2_penalty,
+            loss_fn=loss_fn,
+            stopping_criterium=stopping_criterium,
+        )
+        edited_network = state.weights.squeeze(0).detach()
+        model = reconstruct_network(edited_network.numpy(), config["config.activation"])
+        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        total_accuracy, accuracy_after = evaluate_classifier(model, x_test, y_test)
+
+        row = pd.DataFrame([{
+            "model_idx": model_idx,
+            "original_accuracy": list(accuracy),
+            "accuracy_after": accuracy_after,
+            "overall_accuracy": total_accuracy,
+            "target_class": args.target_class,
+            "dataset": args.dataset,
+            "lr": args.lr,
+            "stop_threshold": args.stop_threshold,
+            "l2_penalty": args.l2_penalty,
+            "loss_fn": args.loss_fn,
+            "stopping_criterium": args.stopping_criterium,
+            "max_steps": args.max_steps,
+            # unlearning state
+            "steps": state.step,
+            "final_loss": state.loss,
+            "distance_travelled": state.distance_travelled,
+            "l2_distance": float(th.norm(state.weights - th.tensor(network)).item()),
+        }])
+        row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
+
+
+if __name__ == "__main__":
+    main()
