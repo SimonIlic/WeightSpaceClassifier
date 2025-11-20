@@ -14,6 +14,7 @@ class UnlearnState:
     loss: float
     grads: list
     distance_travelled: float
+    init_pred: th.Tensor = None  # optional, only set at the start
 
 def boost_loss_factory(beta=0.1):
     """Return a boost_loss(pred, target_class) function with given beta."""
@@ -71,6 +72,7 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     weights = th.tensor(model_weights, requires_grad=True)
     grads = []
     distance_travelled = 0.0
+    initial_prediction = meta_network(weights.unsqueeze(0)).squeeze(0).detach().clone()
 
     for step in range(max_steps):
         # forward pass through meta-network
@@ -82,7 +84,7 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         # update stats
         grads.append(weights.grad.detach().clone())
         state = UnlearnState(step=step,
-                             weights=weights.detach().clone(), 
+                             weights=None,  #NOTE: skipping weight storage for increased efficiency (can be added back if needed)
                              pred=acc_pred.detach().clone(),
                              loss=loss.item(), 
                              grads=grads, 
@@ -105,7 +107,8 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         pred=acc_pred.detach().clone(),
         loss=loss.item(),
         grads=grads,
-        distance_travelled=distance_travelled
+        distance_travelled=distance_travelled,
+        init_pred=initial_prediction
     )
 
     return state

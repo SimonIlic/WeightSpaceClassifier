@@ -112,6 +112,8 @@ def main():
             "final_loss": state.loss,
             "distance_travelled": state.distance_travelled,
             "l2_distance": float(th.norm(state.weights - th.tensor(network)).item()),
+            "init_pred": list(state.init_pred.numpy()),
+            "final_pred": list(state.pred.numpy()),
         }])
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
 
