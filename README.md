@@ -22,6 +22,6 @@ uv add <package_name>
 
 Main files for doing the unlearning:
 - `notebooks/unlearning.ipynb`: Jupyter notebook with the most up to date general unlearning experiments (mostly used by @moosmiddelkoop)
-- `unlearning.py`: Main script for rigorous unlearning experiments (written by @simonilic)
+- `evaluate_models.py`: Main script for rigorous unlearning experiments (written by @simonilic)
 
 Trained metanetworks are stored in the `models/` directory.
