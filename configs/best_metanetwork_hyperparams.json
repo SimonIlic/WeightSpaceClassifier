@@ -1,0 +1,12 @@
+{
+    "optimizer_name": "Adam",
+    "learning_rate": 0.0004,
+    "w_init_name": "kaiming",
+    "init_stddev": 0.05,
+    "l2_penalty": 0.00002,
+    "n_layers": 5,
+    "n_hiddens": 256,
+    "dropout_rate": 0.03,
+    "batch_size": 512,
+    "early_stopping": true
+}
