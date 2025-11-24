@@ -1,16 +1,16 @@
 # PyToch port of tensorflow DNN used by Unterthiner et al. adapted for multi-output regression.
 
-from typing import Any, Tuple, Union
 from time import time
+from typing import Any, Tuple, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
-import matplotlib.pyplot as plt
 
-# config – pulled from your best_configs entry
+# config – pulled from your best_configs entry @simonilic wat betekent deze comment?
 default_config = dict(
     optimizer_name="Adam",
     learning_rate=4e-4,
@@ -127,7 +127,7 @@ def train_torch_dnn(train_x, train_y, val_x, val_y, config, device=None, verbose
     best_val = float("inf")
     train_loss_history: list[float] = []
     val_loss_history: list[float] = []
-    
+
     total_epochs = config.get("n_epochs", 300)
 
     print("\nStarting training of RegressorLens:")
@@ -167,7 +167,7 @@ def train_torch_dnn(train_x, train_y, val_x, val_y, config, device=None, verbose
         val_mse = val_mse_sum / max(val_count, 1)
         val_mae = val_mae_sum / max(val_count, 1)
         val_loss_history.append(val_loss)
-        print(f"Epoch {epoch:3d} ─ val loss {val_loss:.6f} | val MAE {val_mae:.6f} | duration {time()-epoch_start:.1f}s")
+        print(f"Epoch {epoch:3d} ─ val loss {val_loss:.6f} | val MAE {val_mae:.6f} | duration {time() - epoch_start:.1f}s")
 
         # early-stopping logic (min_delta = 0)
         if val_loss < best_val:  # improvement
