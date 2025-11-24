@@ -28,4 +28,4 @@ To train a metanetwork use the function `get_regressor_lens` from `cnn_surgery.l
 Trained metanetworks are stored in the `models/` directory.
 
 ## Metanetwork tuning
-The metanetwork was tuned using the `tuning.py` script. The optimal hyperparameters that were found are stored in the `cnn_surgery.lenses.regressor_lens.py.default_config` variable.
+The metanetwork was tuned using the `tuning.py` script. The optimal hyperparameters that were found are stored in the `cnn_surgery.lenses.regressor_lens.py.default_config` variable or in `configs/best_metanetwork_hyperparams.json`.
