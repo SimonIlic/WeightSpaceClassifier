@@ -10,6 +10,7 @@
 !isolate_layers.ipynb
 !unlearning_branch_comparison.ipynb
 #!regressor_probe_backprop.ipynb
+!good_and_bad_CNNs.ipynb
 
 *.csv
 *.png
