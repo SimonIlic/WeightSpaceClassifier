@@ -167,7 +167,8 @@ def train_torch_dnn(train_x, train_y, val_x, val_y, config, device=None, verbose
         val_mse = val_mse_sum / max(val_count, 1)
         val_mae = val_mae_sum / max(val_count, 1)
         val_loss_history.append(val_loss)
-        print(f"Epoch {epoch:3d} ─ val loss {val_loss:.6f} | val MAE {val_mae:.6f} | duration {time() - epoch_start:.1f}s")
+        if verbose:
+            print(f"Epoch {epoch:3d} ─ val loss {val_loss:.6f} | val MAE {val_mae:.6f} | duration {time() - epoch_start:.1f}s")
 
         # early-stopping logic (min_delta = 0)
         if val_loss < best_val:  # improvement
@@ -226,7 +227,7 @@ def get_regressor_lens(
     return_metrics: bool = False,
     device: str | None = None,
     verbose: bool = False,
-) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Any]]:
+) -> torch.nn.Module | Tuple[torch.nn.Module, Any]:
     """
     Trains a DNN (MLP) regressor model on the provided training data and evaluates it on the validation data.
 
