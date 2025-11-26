@@ -32,9 +32,9 @@ def build_stopping_criterium(name: str, stop_threshold: float):
     if name == "acc_pred":
         return acc_pred_stop_factory(stop_threshold)
     elif name == "cosine_similarity":
-        return cosine_similarity_stop_factory(derivative=False, eps=1-stop_threshold)
+        return cosine_similarity_stop_factory(derivative=False, eps=1 - stop_threshold)
     elif name == "cosine_similarity_diff":
-        return cosine_similarity_stop_factory(derivative=True, eps=1-stop_threshold)
+        return cosine_similarity_stop_factory(derivative=True, eps=1 - stop_threshold)
     raise ValueError(f"Unsupported stopping criterium: {name}")
 
 
@@ -42,20 +42,33 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
     parser.add_argument("--n-models", type=int, default=1000, help="Number of models to evaluate.")
     parser.add_argument("--target-class", type=int, help="Class index to unlearn.")
-    parser.add_argument("--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])
-    parser.add_argument("--output-file", type=str, default="evaluation_results.csv",
-                        help="CSV file where the evaluation rows are appended.")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="mnist",
+        help="Dataset name.",
+        choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"],
+    )
+    parser.add_argument(
+        "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended."
+    )
     parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
-    parser.add_argument("--stop-threshold", type=float, default=0.1,
-                        help="Threshold parameter passed to the stopping criterium.")
+    parser.add_argument("--stop-threshold", type=float, default=0.1, help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
-    parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple",
-                        help="Loss function used during unlearning.")
-    parser.add_argument("--boost-beta", type=float, default=0.1,
-                        help="Beta parameter for boost loss (only used when --loss-fn=boost).")
-    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"],
-                        default="acc_pred", help="Stopping criterium to terminate unlearning.")
+    parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple", help="Loss function used during unlearning.")
+    parser.add_argument(
+        "--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost)."
+    )
+    parser.add_argument(
+        "--stopping-criterium",
+        choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"],
+        default="acc_pred",
+        help="Stopping criterium to terminate unlearning.",
+    )
+    parser.add_argument(
+        "--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file."
+    )
     return parser.parse_args()
 
 
@@ -64,7 +77,7 @@ def main():
     loss_fn = build_loss_fn(args.loss_fn, args.boost_beta)
     stopping_criterium = build_stopping_criterium(args.stopping_criterium, args.stop_threshold)
     metrics_file = "metrics_merged_final.csv"
-    meta_network_path = f"meta_network_{args.dataset}.pkl"
+    meta_network_path = args.meta_network_path
 
     x_test, y_test = load_testset_data(args.dataset)
     _, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
@@ -94,27 +107,31 @@ def main():
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         total_accuracy, accuracy_after = evaluate_classifier(model, x_test, y_test)
 
-        row = pd.DataFrame([{
-            "model_idx": model_idx,
-            "original_accuracy": list(accuracy),
-            "accuracy_after": accuracy_after,
-            "overall_accuracy": total_accuracy,
-            "target_class": args.target_class,
-            "dataset": args.dataset,
-            "lr": args.lr,
-            "stop_threshold": args.stop_threshold,
-            "l2_penalty": args.l2_penalty,
-            "loss_fn": args.loss_fn,
-            "stopping_criterium": args.stopping_criterium,
-            "max_steps": args.max_steps,
-            # unlearning state
-            "steps": state.step,
-            "final_loss": state.loss,
-            "distance_travelled": state.distance_travelled,
-            "l2_distance": float(th.norm(state.weights - th.tensor(network)).item()),
-            "init_pred": list(state.init_pred.numpy()),
-            "final_pred": list(state.pred.numpy()),
-        }])
+        row = pd.DataFrame(
+            [
+                {
+                    "model_idx": model_idx,
+                    "original_accuracy": list(accuracy),
+                    "accuracy_after": accuracy_after,
+                    "overall_accuracy": total_accuracy,
+                    "target_class": args.target_class,
+                    "dataset": args.dataset,
+                    "lr": args.lr,
+                    "stop_threshold": args.stop_threshold,
+                    "l2_penalty": args.l2_penalty,
+                    "loss_fn": args.loss_fn,
+                    "stopping_criterium": args.stopping_criterium,
+                    "max_steps": args.max_steps,
+                    # unlearning state
+                    "steps": state.step,
+                    "final_loss": state.loss,
+                    "distance_travelled": state.distance_travelled,
+                    "l2_distance": float(th.norm(state.weights - th.tensor(network)).item()),
+                    "init_pred": list(state.init_pred.numpy()),
+                    "final_pred": list(state.pred.numpy()),
+                }
+            ]
+        )
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
 
 
