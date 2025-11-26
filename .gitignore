@@ -1,3 +1,7 @@
+# ignore model experiment files
+models/good_bad_experiment_2/
+models/good_bad_experiment/
+
 # ignore pickle files
 *.pkl
 
