@@ -42,33 +42,16 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
     parser.add_argument("--n-models", type=int, default=1000, help="Number of models to evaluate.")
     parser.add_argument("--target-class", type=int, help="Class index to unlearn.")
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="mnist",
-        help="Dataset name.",
-        choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"],
-    )
-    parser.add_argument(
-        "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended."
-    )
+    parser.add_argument("--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])  # fmt: skip
+    parser.add_argument("--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
     parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
     parser.add_argument("--stop-threshold", type=float, default=0.1, help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
     parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple", help="Loss function used during unlearning.")
-    parser.add_argument(
-        "--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost)."
-    )
-    parser.add_argument(
-        "--stopping-criterium",
-        choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"],
-        default="acc_pred",
-        help="Stopping criterium to terminate unlearning.",
-    )
-    parser.add_argument(
-        "--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file."
-    )
+    parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
+    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
+    parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
     return parser.parse_args()
 
 
