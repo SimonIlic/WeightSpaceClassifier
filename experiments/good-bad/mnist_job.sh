@@ -4,7 +4,7 @@ for i in {0..4}; do
             --n-models 100 \
             --target-class $j \
             --dataset mnist \
-            --output-file ~/Desktop/snijzaal/WeightSpaceClassifier/experiments/good-bad/mnist_eval_results_meta_${i}_class_${j}.csv \
+            --output-file ~/Desktop/snijzaal/WeightSpaceClassifier/experiments/good-bad/mnist_eval_results_meta_${i}_class_${j}_idx100-200.csv \
             --max-steps 1000 \
             --lr 0.3 \
             --stop-threshold 0.5 \

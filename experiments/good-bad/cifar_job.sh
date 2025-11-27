@@ -1,4 +1,4 @@
-DATASET=fashion_mnist
+DATASET=cifar10
 
 for i in {0..4}; do
     for j in {0..9}; do
