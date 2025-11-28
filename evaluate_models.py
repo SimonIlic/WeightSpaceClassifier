@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument("--stop-threshold", type=float, default=0.1, help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
-    parser.add_argument("pickle_type", type=str, default="pkl", help="Type of pickle file.", choices=["pkl", "pt"])
+    parser.add_argument("--pickle_type", type=str, default="pkl", help="Type of pickle file.", choices=["pkl", "pt"])
     return parser.parse_args()
 
 
