@@ -1,0 +1,18 @@
+\begin{minipage}{0.5\textwidth}
+\begin{algorithm}[H]
+\caption{Weight Space Unlearning}
+\label{alg:wsu}
+\begin{algorithmic}[1]
+\Require Loss function $f:\mathbb{R}^d\!\to\!\mathbb{R}$ (differentiable), gradient $\nabla f$, initial model $\mathbf{\theta}_0 \in \mathbb{R}^d$, step size $\eta>0$, stopping criterion $s(\cdot)$, tolerance $\varepsilon>0$
+\State $\bm{\theta} \gets \bm{\theta}_0$
+\While{not $s(\bm{\theta})$}
+    \State $\mathbf{g} \gets \nabla_\theta f(\mathbf{\theta})$ \Comment{Compute gradient w.r.t input}
+    \If{$\frac{\mathbf{g}\cdot\mathbf{g'}}{\|\mathbf{g}\|\|\mathbf{g'}\|} \le 1 - \varepsilon$}
+        \State \textbf{break} \Comment{Stop at Direction shift}
+    \EndIf
+    \State $\bm{\theta} \gets \bm\theta - \eta\, \mathbf{g}$ \Comment{Gradient step}
+\EndWhile
+\State \Return $\bm{\theta}$
+\end{algorithmic}
+\end{algorithm}
+\end{minipage}
