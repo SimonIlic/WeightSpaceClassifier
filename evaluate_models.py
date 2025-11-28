@@ -98,7 +98,7 @@ def main():
 
     metanetwork.eval()
 
-    for model_idx in tqdm(range(args.start_idx, args.n_models + 100)):
+    for model_idx in tqdm(range(args.start_idx, args.start_idx + args.n_models)):
         network = weights_val[model_idx]
         accuracy = accuracies_val[model_idx]
         config = config_val.iloc[model_idx]
