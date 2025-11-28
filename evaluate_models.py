@@ -49,7 +49,7 @@ def build_stopping_criterium(name: str, args):
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
     parser.add_argument("-n", "--n-models", type=int, default=1000, help="Number of models to evaluate.")
-    parser.add_argument("-t", "--target-class", type=int, help="Class index to unlearn.")
+    parser.add_argument("-c", "--target-class", type=int, help="Class index to unlearn.")
     parser.add_argument("-d","--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])  # fmt: skip
     parser.add_argument("-o", "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
     parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
