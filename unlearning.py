@@ -53,6 +53,11 @@ def cosine_similarity_stop_factory(derivative=False, eps=1e-2):
         return cosine_similarity([grads[-1]], [grads[-2 if derivative else 0]]) < 1 - eps
     return cosine_similarity_stop
 
+def step_stop_factory(max_steps=100):
+    def step_stop(state: UnlearnState):
+        return state.step >= max_steps
+    return step_stop
+
 def unlearn(model_weights, meta_network: th.nn.Module, target_class,
             max_steps=100, lr=0.01, loss_fn=boost_loss, stopping_criterium=acc_pred_stop, l2_penalty=1e-6):
     """

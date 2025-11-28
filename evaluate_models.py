@@ -13,6 +13,7 @@ from unlearning import (
     acc_pred_stop_factory,
     boost_loss_factory,
     cosine_similarity_stop_factory,
+    step_stop_factory,
     simple_loss,
     unlearn,
 )
@@ -27,14 +28,19 @@ def build_loss_fn(name: str, boost_beta: float):
     raise ValueError(f"Unsupported loss function: {name}")
 
 
-def build_stopping_criterium(name: str, stop_threshold: float):
+def build_stopping_criterium(name: str, args):
     """Return stopping criterium configured from CLI parameters."""
+    stop_threshold = args.stop_threshold
     if name == "acc_pred":
         return acc_pred_stop_factory(stop_threshold)
     elif name == "cosine_similarity":
         return cosine_similarity_stop_factory(derivative=False, eps=1 - stop_threshold)
     elif name == "cosine_similarity_diff":
         return cosine_similarity_stop_factory(derivative=True, eps=1 - stop_threshold)
+    elif name == "step":
+        if stop_threshold is not None:
+            raise ValueError("stop_threshold is not used with 'step' stopping criterium, use max_steps instead.")
+        return step_stop_factory(max_steps=int(args.max_steps))
     raise ValueError(f"Unsupported stopping criterium: {name}")
 
 
@@ -46,10 +52,12 @@ def parse_args():
     parser.add_argument("--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
     parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
+    parser.add_argument("--stop-threshold", type=float,
+                        help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
     parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple", help="Loss function used during unlearning.")
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
-    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
+    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
     parser.add_argument("--stop-threshold", type=float, default=0.1, help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
     return parser.parse_args()
@@ -58,7 +66,7 @@ def parse_args():
 def main():
     args = parse_args()
     loss_fn = build_loss_fn(args.loss_fn, args.boost_beta)
-    stopping_criterium = build_stopping_criterium(args.stopping_criterium, args.stop_threshold)
+    stopping_criterium = build_stopping_criterium(args.stopping_criterium, args)
     metrics_file = "metrics_merged_final.csv"
     meta_network_path = args.meta_network_path
 
