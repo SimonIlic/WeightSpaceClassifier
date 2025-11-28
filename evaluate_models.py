@@ -82,7 +82,7 @@ def main():
     accuracies_val = metrics_val[:, -10:]
 
     if args.pickle_type == "pt":
-        MetaNetwork = FCN(
+        metanetwork = FCN(
             input_dim=weights_val.shape[1],
             n_layers=int(default_config["n_layers"]),
             n_hidden=int(default_config["n_hiddens"]),
@@ -91,13 +91,13 @@ def main():
             activation=nn.ReLU,
             last_activation="sigmoid",
         )
-        MetaNetwork.load_state_dict(torch.load(meta_network_path))
+        metanetwork.load_state_dict(torch.load(meta_network_path))
     elif args.pickle_type == "pkl":
-        MetaNetwork = pickle.load(open(meta_network_path, "rb"))
+        metanetwork = pickle.load(open(meta_network_path, "rb"))
     else:
         raise ValueError(f"Unsupported pickle type: {args.pickle_type}")
 
-    MetaNetwork.eval()
+    metanetwork.eval()
 
     for model_idx in tqdm(range(args.start_idx, args.n_models + 100)):
         network = weights_val[model_idx]
@@ -106,7 +106,7 @@ def main():
 
         state = unlearn(
             network,
-            MetaNetwork,
+            metanetwork,
             args.target_class,
             max_steps=args.max_steps,
             lr=args.lr,
