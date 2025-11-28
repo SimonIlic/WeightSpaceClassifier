@@ -11,7 +11,7 @@ from cnn_surgery.utils.utils import find_project_root
 
 # Removed tensorflow.io import - not needed for local file operations
 
-SEED = 123  # Seed 123 will be the canonical seed for this project.
+DEFAULT_SEED = 123  # Seed 123 will be the canonical seed for this project.
 DATAFRAME_CONFIG_COLS = [
     "config.w_init",
     "config.activation",
@@ -130,7 +130,7 @@ def load_dataset(
     metrics_file="metrics.csv",
     load_class_acc=False,
     shuffle=True,
-    seed=SEED,
+    seed=DEFAULT_SEED,
 ):
     """Load weight, metric, and config data for a single dataset.
 
@@ -182,9 +182,9 @@ def load_dataset(
     # Shuffle and split into train/test
     random_idx = np.arange(inputs.shape[0])
     if shuffle:
-        if seed == SEED:
+        if seed == DEFAULT_SEED:
             logging.warning(
-                f"Using default seed {SEED} for shuffling. This results in the canonical train/test/val splits for this project. If a random split is desired, please use a different seed."
+                f"Using default seed {DEFAULT_SEED} for shuffling. This results in the canonical train/test/val splits for this project. If a random split is desired, please use a different seed."
             )
         np.random.seed(seed)  # Set seed for reproducibility
         np.random.shuffle(random_idx)
