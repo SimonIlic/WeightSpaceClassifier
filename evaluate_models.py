@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple", help="Loss function used during unlearning.")
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
     parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
-    parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
+    parser.add_argument("--meta-network-path", type=str, help="Path to the meta-network file.")  # fmt: skip
     return parser.parse_args()
 
 
@@ -65,7 +65,12 @@ def main():
     loss_fn = build_loss_fn(args.loss_fn, args.boost_beta)
     stopping_criterium = build_stopping_criterium(args.stopping_criterium, args)
     metrics_file = "metrics_merged_final.csv"
-    meta_network_path = args.meta_network_path
+    if args.meta_network_path:
+        meta_network_path = args.meta_network_path
+    else:
+        meta_network_path = f"meta_network_{args.dataset}.pkl"
+
+
 
     x_test, y_test = load_testset_data(args.dataset)
     _, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
