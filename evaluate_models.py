@@ -3,20 +3,23 @@ import os
 import pickle
 
 import pandas as pd
-import torch as th
+import torch
+import torch.nn as nn
 from tqdm import tqdm
 
+from cnn_surgery.lenses.regressor_lens import FCN, default_config
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
 from cnn_surgery.utils.load_dataset import load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
-from unlearning import (
+from unlearning import (  # fmt: skip
     acc_pred_stop_factory,
     boost_loss_factory,
     cosine_similarity_stop_factory,
-    step_stop_factory,
     simple_loss,
+    step_stop_factory,
     unlearn,
 )
+
 
 def build_loss_fn(name: str, boost_beta: float):
     """Return the loss function selected by the user."""
@@ -55,8 +58,11 @@ def parse_args():
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
     parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple", help="Loss function used during unlearning.")
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
-    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
-    parser.add_argument("--meta-network-path", type=str, help="Path to the meta-network file.")  # fmt: skip
+    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
+    parser.add_argument("--stop-threshold", type=float, default=0.1, help="Threshold parameter passed to the stopping criterium.")
+    parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
+    parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
+    parser.add_argument("pickle_type", type=str, default="pkl", help="Type of pickle file.", choices=["pkl", "pt"])
     return parser.parse_args()
 
 
@@ -70,24 +76,37 @@ def main():
     else:
         meta_network_path = f"meta_network_{args.dataset}.pkl"
 
-
-
     x_test, y_test = load_testset_data(args.dataset)
     _, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
     weights_val, metrics_val, config_val = val_data
     accuracies_val = metrics_val[:, -10:]
 
-    meta_network = pickle.load(open(meta_network_path, "rb"))
-    meta_network.eval()
+    if args.pickle_type == "pt":
+        MetaNetwork = FCN(
+            input_dim=weights_val.shape[1],
+            n_layers=int(default_config["n_layers"]),
+            n_hidden=int(default_config["n_hiddens"]),
+            n_outputs=accuracies_val.shape[1],
+            dropout_p=float(default_config["dropout_rate"]),
+            activation=nn.ReLU,
+            last_activation="sigmoid",
+        )
+        MetaNetwork.load_state_dict(torch.load(meta_network_path))
+    elif args.pickle_type == "pkl":
+        MetaNetwork = pickle.load(open(meta_network_path, "rb"))
+    else:
+        raise ValueError(f"Unsupported pickle type: {args.pickle_type}")
 
-    for model_idx in tqdm(range(args.n_models)):
+    MetaNetwork.eval()
+
+    for model_idx in tqdm(range(args.start_idx, args.n_models + 100)):
         network = weights_val[model_idx]
         accuracy = accuracies_val[model_idx]
         config = config_val.iloc[model_idx]
 
         state = unlearn(
             network,
-            meta_network,
+            MetaNetwork,
             args.target_class,
             max_steps=args.max_steps,
             lr=args.lr,
@@ -119,12 +138,13 @@ def main():
                     "steps": state.step,
                     "final_loss": state.loss,
                     "distance_travelled": state.distance_travelled,
-                    "l2_distance": float(th.norm(state.weights - th.tensor(network)).item()),
+                    "l2_distance": float(torch.norm(state.weights - torch.tensor(network)).item()),
                     "init_pred": list(state.init_pred.numpy()),
                     "final_pred": list(state.pred.numpy()),
                 }
             ]
         )
+        # this is nice because even if the csv already exists, we can append new models to it
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
 
 
