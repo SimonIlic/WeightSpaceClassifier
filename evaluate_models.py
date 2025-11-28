@@ -59,10 +59,8 @@ def parse_args():
     parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple", help="Loss function used during unlearning.")
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
     parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
-    parser.add_argument("--stop-threshold", type=float, default=0.1, help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
-    parser.add_argument("--pickle_type", type=str, default="pkl", help="Type of pickle file.", choices=["pkl", "pt"])
     return parser.parse_args()
 
 
@@ -81,7 +79,8 @@ def main():
     weights_val, metrics_val, config_val = val_data
     accuracies_val = metrics_val[:, -10:]
 
-    if args.pickle_type == "pt":
+    # TODO: Refactor loading metanetwork to a utility function?
+    if args.meta_network_path.endswith(".pt"):
         metanetwork = FCN(
             input_dim=weights_val.shape[1],
             n_layers=int(default_config["n_layers"]),
@@ -92,10 +91,10 @@ def main():
             last_activation="sigmoid",
         )
         metanetwork.load_state_dict(torch.load(meta_network_path))
-    elif args.pickle_type == "pkl":
+    elif args.meta_network_path.endswith(".pkl"):
         metanetwork = pickle.load(open(meta_network_path, "rb"))
     else:
-        raise ValueError(f"Unsupported pickle type: {args.pickle_type}")
+        raise ValueError(f"Unsupported pickle type: {args.meta_network_path.split('.')[-1]}")
 
     metanetwork.eval()
 
@@ -141,6 +140,7 @@ def main():
                     "l2_distance": float(torch.norm(state.weights - torch.tensor(network)).item()),
                     "init_pred": list(state.init_pred.numpy()),
                     "final_pred": list(state.pred.numpy()),
+                    "meta_network": meta_network_path,
                 }
             ]
         )
