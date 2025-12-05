@@ -6,12 +6,13 @@ for i in {0..4}; do
             --n-models 100 \
             --target-class $j \
             --dataset $DATASET \
-            --output-file ~/Desktop/snijzaal/WeightSpaceClassifier/experiments/good-bad/${DATASET}_eval_results_meta_${i}_class_${j}_idx100-200.csv \
+            --output-file ~/Desktop/snijzaal/WeightSpaceClassifier/experiments/good-bad/${DATASET}_eval_results_meta_${i}_class_${j}.csv \
             --max-steps 1000 \
             --lr 0.3 \
             --stop-threshold 0.5 \
             --stopping-criterium acc_pred \
             --loss-fn boost \
-            --meta-network-path ~/Desktop/snijzaal/WeightSpaceClassifier/models/good_bad_experiment_2/${DATASET}_metanetwork_$i.pt
+            --meta-network-path ~/Desktop/snijzaal/WeightSpaceClassifier/models/good_bad_experiment_2/${DATASET}_metanetwork_$i.pt \
+            --start-idx 100
     done
 done
