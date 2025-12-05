@@ -198,7 +198,6 @@ def train_torch_dnn(train_x, train_y, val_x, val_y, config, device=None, verbose
 
     mse_train, mae_train = mse_mae(model, eval_loader_train, device)
     mse_val, mae_val = mse_mae(model, eval_loader_val, device)
-
     var = np.mean((val_y - np.mean(val_y)) ** 2.0)
     r2 = 1.0 - mse_val / var
 
@@ -246,3 +245,24 @@ def get_regressor_lens(
     if return_metrics:
         return model, metrics
     return model
+
+
+if __name__ == "__main__":
+    from cnn_surgery.utils.load_dataset import load_multi_stage_dataset
+
+    DATASET = "fashion_mnist"
+    train, val, test = load_multi_stage_dataset(include_test=True, dataset=DATASET).values()  # type: ignore
+
+    weights_train = train[0]
+    weights_val = val[0]
+    weights_test = test[0]
+
+    accuracies_train = train[1]
+    accuracies_val = val[1]
+    accuracies_test = test[1]
+
+    configs_train = train[2]
+    configs_val = val[2]
+    configs_test = test[2]
+
+    RegressorLens = get_regressor_lens(weights_train, accuracies_train, weights_val, accuracies_val, device="cpu")
