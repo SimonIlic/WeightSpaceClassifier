@@ -32,6 +32,10 @@ def simple_loss(pred, target_class):
     """ Simple loss to reduce accuracy on target class."""
     return pred[target_class]
 
+def improve_loss(pred, target_class):
+    """ Simple loss to improve accuracy on target class."""
+    return -pred[target_class]
+
 def l2_regularisation(weights):
     """ L2 regularization on model weights."""
     return th.sum(weights ** 2)

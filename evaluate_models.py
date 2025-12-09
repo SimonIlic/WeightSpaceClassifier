@@ -16,6 +16,7 @@ from unlearning import (  # fmt: skip
     boost_loss_factory,
     cosine_similarity_stop_factory,
     simple_loss,
+    improve_loss,
     step_stop_factory,
     unlearn,
 )
@@ -27,6 +28,8 @@ def build_loss_fn(name: str, boost_beta: float):
         return simple_loss
     if name == "boost":
         return boost_loss_factory(boost_beta)
+    if name == "improve":
+        return improve_loss
     raise ValueError(f"Unsupported loss function: {name}")
 
 
@@ -56,11 +59,12 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
     parser.add_argument("--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
-    parser.add_argument("--loss-fn", choices=["simple", "boost"], default="simple", help="Loss function used during unlearning.")
+    parser.add_argument("--loss-fn", choices=["simple", "boost", "improve"], default="simple", help="Loss function used during unlearning.")
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
-    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
+    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
     parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
+    parser.add_argument("--weights-set", type=str, default="val", choices=["train", "val"], help="Which set of weights to use for unlearning (train or val).")
     return parser.parse_args()
 
 
@@ -74,9 +78,11 @@ def main():
     else:
         meta_network_path = f"meta_network_{args.dataset}.pkl"
 
+    # test set for CNN evaluation after unlearning (image data, labels)
     x_test, y_test = load_testset_data(args.dataset)
-    _, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
-    weights_val, metrics_val, config_val = val_data
+    # models to unlearn (CNN weights, per-class accuracies, config)
+    train_data, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
+    weights_val, metrics_val, config_val = train_data if args.weights_set == "train" else val_data
     accuracies_val = metrics_val[:, -10:]
 
     # TODO: Refactor loading metanetwork to a utility function?
