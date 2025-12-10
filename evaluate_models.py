@@ -51,7 +51,7 @@ def build_stopping_criterium(name: str, args):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
-    parser.add_argument("-n", "--n-models", type=int, default=1000, help="Number of models to evaluate.")
+    parser.add_argument("-n", "--n-models", type=int, default=None, help="Number of models to evaluate. If None, evaluate all models.")
     parser.add_argument("-c", "--target-class", type=int, help="Class index to unlearn.")
     parser.add_argument("-d","--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])  # fmt: skip
     parser.add_argument("-o", "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
@@ -84,6 +84,7 @@ def main():
     train_data, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
     weights_val, metrics_val, config_val = train_data if args.weights_set == "train" else val_data
     accuracies_val = metrics_val[:, -10:]
+    n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
 
     # TODO: Refactor loading metanetwork to a utility function?
     if args.meta_network_path.endswith(".pt"):
@@ -104,7 +105,7 @@ def main():
 
     metanetwork.eval()
 
-    for model_idx in tqdm(range(args.start_idx, args.start_idx + args.n_models)):
+    for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
         network = weights_val[model_idx]
         accuracy = accuracies_val[model_idx]
         config = config_val.iloc[model_idx]
