@@ -112,6 +112,7 @@ def run_pick_best(
     }
 
 
+# fmt: off
 def parse_args():
     parser = argparse.ArgumentParser(description="Pick-best unlearning across meta-network ensemble.")
     parser.add_argument("--dataset", default="fashion_mnist", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"], help="Dataset name.")
@@ -129,13 +130,14 @@ def parse_args():
     parser.add_argument("--min_base_target_acc", type=float, default=None, help="Filter models with base target accuracy below this value.")
     parser.add_argument("--out_csv", type=str, required=True, help="Path to output CSV.")
     return parser.parse_args()
+# fmt: on
 
 
 def main():
     args = parse_args()
 
     data = load_multi_stage_dataset(dataset=args.dataset)
-    weights_val, accuracies_val, _ = data["val"]
+    weights_val, accuracies_val, _ = data["val"]  # type: ignore
 
     update_nets = load_meta_networks(args.dataset, args.update_nets)
     eval_nets = load_meta_networks(args.dataset, args.eval_nets)
@@ -185,4 +187,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
