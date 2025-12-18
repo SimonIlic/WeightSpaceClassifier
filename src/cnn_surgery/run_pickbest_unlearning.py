@@ -8,14 +8,14 @@ import numpy as np
 import pandas as pd
 import torch
 
-from cnn_surgery.utils.load_dataset import load_multi_stage_dataset
-from unlearning import (
+from cnn_surgery.unlearning import (
     acc_pred_stop_factory,
     boost_loss_factory,
     improve_loss,
     simple_loss,
     unlearn,
 )
+from cnn_surgery.utils.load_dataset import load_multi_stage_dataset
 
 
 def build_loss_fn(name: str, boost_beta: float):
