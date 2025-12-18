@@ -11,7 +11,7 @@ models/good_bad_experiment/
 # ignore notebooks, except those in the notebooks/ folder
 *.ipynb
 !notebooks/*.ipynb
-
+notebooks/2025*
 
 *.csv
 *.png
