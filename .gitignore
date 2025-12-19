@@ -2,11 +2,12 @@
 *.pdf
 
 # ignore model experiment files
-models/good_bad_experiment_2/
-models/good_bad_experiment/
+metanetworks/pt/good_bad_experiment_2/
+metanetworks/pt/good_bad_experiment/
 
 # ignore pickle files
 *.pkl
+*.pt
 
 # ignore notebooks, except those in the notebooks/ folder
 *.ipynb
