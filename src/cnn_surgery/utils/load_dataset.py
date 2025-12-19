@@ -272,9 +272,15 @@ def load_multi_stage_dataset(include_test=False, dataset="mnist"):
 
 # find the index of the best-performing model in the test set
 def find_best_model_index(dataset, partition):
-    train_early, test_early, val_early = load_dataset(dataset, metrics_file='metrics_merged_early.csv', load_class_acc=True, stage='early')
-    train_middle, test_middle, val_middle = load_dataset(dataset, metrics_file='metrics_merged_middle.csv', load_class_acc=True, stage='middle')
-    train_final, test_final, val_final = load_dataset(dataset, metrics_file='metrics_merged_final.csv', load_class_acc=True, stage='final')
+    train_early, test_early, val_early = load_dataset(
+        dataset, metrics_file="metrics_merged_early.csv", load_class_acc=True, stage="early"
+    )
+    train_middle, test_middle, val_middle = load_dataset(
+        dataset, metrics_file="metrics_merged_middle.csv", load_class_acc=True, stage="middle"
+    )
+    train_final, test_final, val_final = load_dataset(
+        dataset, metrics_file="metrics_merged_final.csv", load_class_acc=True, stage="final"
+    )
 
     if partition == "train":
         overall_accuracies_val = np.concatenate([train_early[1][:, 0], train_middle[1][:, 0], train_final[1][:, 0]])
@@ -288,6 +294,20 @@ def find_best_model_index(dataset, partition):
     best_model_idx = np.argmax(overall_accuracies_val)
     print(f"Best model index in {partition} set: {best_model_idx}, accuracy: {overall_accuracies_val[best_model_idx]}")
     return best_model_idx
+
+
+def num_of_failed_nets(verbose=False):
+    (
+        (weights_train, outputs_train, configs_train),
+        (weights_test, outputs_test, configs_test),
+        (weights_val, outputs_val, configs_val),
+    ) = load_dataset("mnist", load_class_acc=True, metrics_file="metrics_merged_final.csv")
+    accuracies = outputs_val[:, -10:]
+    failed_nets = np.sum(np.any(accuracies <= 0.1, axis=1))
+    if verbose:
+        print(f"Number of failed networks: {failed_nets} out of {len(accuracies)}, fraction: {failed_nets / len(accuracies):.2f}")
+    return failed_nets
+
 
 # Example usage:
 if __name__ == "__main__":
