@@ -19,7 +19,7 @@ SHAPES = {
 }
 
 
-def reconstruct_network(weights: np.ndarray, activation: str, l2_penalty=0.0) -> tf.keras.Model:  # type: ignore  # type: ignore
+def reconstruct_network(weights: np.ndarray, activation: str, l2_penalty=0.0, dropout_rate=0.0) -> tf.keras.Model:  # type: ignore  # type: ignore
     """
     Reconstruct a CNN model from the paper with the given weights and activation function.
     Args:
@@ -33,7 +33,7 @@ def reconstruct_network(weights: np.ndarray, activation: str, l2_penalty=0.0) ->
         n_layers=3,
         n_hidden=16,
         n_outputs=10,
-        dropout_rate=0.0,
+        dropout_rate=dropout_rate,
         activation=activation,
         w_regularizer=w_reg,
         w_init="glorot_uniform",

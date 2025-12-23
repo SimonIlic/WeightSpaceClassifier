@@ -6,7 +6,7 @@ from cnn_surgery.utils.process_models import _flatten_weights_for_reconstruction
 
 def finetune_ascent(weights, config, data, steps):
     """Baseline finetuning using gradient ascent on the forget task. As in Ilharco et al., Golatkar et al., Tarun et al."""
-    model = reconstruct_network(weights, activation=config["config.activation"], l2_penalty=config['config.l2reg'])
+    model = reconstruct_network(weights, activation=config["config.activation"], l2_penalty=config['config.l2reg'], dropout_rate=config['config.dropout'])
     loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     optimizer = keras.optimizers.get(config["config.optimizer"])
     optimizer.learning_rate = config["config.learning_rate"]
