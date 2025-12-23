@@ -1,13 +1,15 @@
 import keras
+from math import prod
+import numpy as np
 from cnn_surgery.utils.reconstruct_network import reconstruct_network, SHAPES
 from cnn_surgery.utils.process_models import _flatten_weights_for_reconstruction
 
 def finetune_ascent(weights, config, data, steps):
     """Baseline finetuning using gradient ascent on the forget task. As in Ilharco et al., Golatkar et al., Tarun et al."""
-    model = reconstruct_network(weights, activation=config["activation"], l2_penalty=config['l2_penalty'])
+    model = reconstruct_network(weights, activation=config["config.activation"], l2_penalty=config['config.l2reg'])
     loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-    optimizer = keras.optimizers.get(config["optimizer"])
-    optimizer.learning_rate = config["learning_rate"]
+    optimizer = keras.optimizers.get(config["config.optimizer"])
+    optimizer.learning_rate = config["config.learning_rate"]
     # Compile with negated loss for gradient ascent
     model.compile(
         optimizer=optimizer,
@@ -41,12 +43,9 @@ def random_vector(original_weights, edit_weights):
 
 if __name__ == "__main__":
     from cnn_surgery.utils.train_network import get_dataset
-    import tensorflow as tf
     #NOTE: Unterthiner does not mention batch size, using default from their codebase
     dataset = get_dataset("mnist", batchsize=512)
 
-    import numpy as np
-    from math import prod
     example_weights = np.array([0.1] * sum(prod(shape) for shape in SHAPES.values()))
 
     data_tr, data_te, dataset_info = dataset

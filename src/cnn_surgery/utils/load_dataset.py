@@ -20,6 +20,7 @@ DATAFRAME_CONFIG_COLS = [
     "config.l2reg",
     "config.train_fraction",
     "config.dropout",
+    "config.optimizer",
 ]
 CATEGORICAL_CONFIG_PARAMS = ["config.w_init", "config.activation"]
 CATEGORICAL_CONFIG_PARAMS_PREFIX = ["winit", "act"]
