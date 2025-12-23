@@ -49,6 +49,29 @@ def build_stopping_criterium(name: str, args):
     raise ValueError(f"Unsupported stopping criterium: {name}")
 
 
+def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int):
+    """Load a meta-network from a state dict (.pt) or pickle (.pkl) file."""
+    if meta_network_path.endswith(".pt"):
+        metanetwork = FCN(
+            input_dim=input_dim,
+            n_layers=int(default_config["n_layers"]),
+            n_hidden=int(default_config["n_hiddens"]),
+            n_outputs=n_outputs,
+            dropout_p=float(default_config["dropout_rate"]),
+            activation=nn.ReLU,
+            last_activation="sigmoid",
+        )
+        metanetwork.load_state_dict(torch.load(meta_network_path, map_location="cpu"))
+    elif meta_network_path.endswith(".pkl"):
+        with open(meta_network_path, "rb") as meta_file:
+            metanetwork = pickle.load(meta_file)
+    else:
+        raise ValueError(f"Unsupported pickle type: {meta_network_path.split('.')[-1]}")
+
+    metanetwork.eval()
+    return metanetwork
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
     parser.add_argument(
@@ -96,24 +119,11 @@ def main():
     accuracies_val = metrics_val[:, -10:]
     n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
 
-    # TODO: Refactor loading metanetwork to a utility function?
-    if args.meta_network_path.endswith(".pt"):
-        metanetwork = FCN(
-            input_dim=weights_val.shape[1],
-            n_layers=int(default_config["n_layers"]),
-            n_hidden=int(default_config["n_hiddens"]),
-            n_outputs=accuracies_val.shape[1],
-            dropout_p=float(default_config["dropout_rate"]),
-            activation=nn.ReLU,
-            last_activation="sigmoid",
-        )
-        metanetwork.load_state_dict(torch.load(meta_network_path))
-    elif args.meta_network_path.endswith(".pkl"):
-        metanetwork = pickle.load(open(meta_network_path, "rb"))
-    else:
-        raise ValueError(f"Unsupported pickle type: {args.meta_network_path.split('.')[-1]}")
-
-    metanetwork.eval()
+    metanetwork = load_meta_network(
+        meta_network_path,
+        input_dim=weights_val.shape[1],
+        n_outputs=accuracies_val.shape[1],
+    )
 
     for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
         network = weights_val[model_idx]
