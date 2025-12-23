@@ -89,7 +89,7 @@ def parse_args():
     )
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
     parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
-    parser.add_argument("--meta-network-path", type=str, default="main_regressor_lens_fashion_mnist.pt", help="Path to the meta-network file.")  # fmt: skip
+    parser.add_argument("--meta-network-path", type=str, help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
     parser.add_argument(
         "--weights-set",
