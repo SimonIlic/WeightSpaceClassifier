@@ -19,7 +19,7 @@ SHAPES = {
 }
 
 
-def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:  # type: ignore  # type: ignore
+def reconstruct_network(weights: np.ndarray, activation: str, l2_penalty=0.0) -> tf.keras.Model:  # type: ignore  # type: ignore
     """
     Reconstruct a CNN model from the paper with the given weights and activation function.
     Args:
@@ -28,13 +28,14 @@ def reconstruct_network(weights: np.ndarray, activation: str) -> tf.keras.Model:
     Returns:
         tf.keras.Model: The reconstructed CNN model. (needs to be compiled before use)
     """
+    w_reg = tf.keras.regularizers.l2(l2_penalty) if l2_penalty > 0.0 else None
     model = build_cnn(
         n_layers=3,
         n_hidden=16,
         n_outputs=10,
         dropout_rate=0.0,
         activation=activation,
-        w_regularizer=None,
+        w_regularizer=w_reg,
         w_init="glorot_uniform",
         b_init="zeros",
         stride=2,
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     example_activation = "relu"
 
     # Reconstruct the model
-    model = reconstruct_network(example_weights, example_activation)
+    model = reconstruct_network(example_weights, example_activation, l2_penalty=0.01)
 
     # Print model summary
     model.summary()
