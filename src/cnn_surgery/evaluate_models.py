@@ -20,6 +20,8 @@ from cnn_surgery.unlearning import (  # fmt: skip
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
 from cnn_surgery.utils.load_dataset import load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
+from cnn_surgery.baselines import random_vector, finetune_ascent
+from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset
 
 
 def build_loss_fn(name: str, boost_beta: float):
@@ -100,6 +102,11 @@ def parse_args():
     )
     return parser.parse_args()
 
+def evaluate_network(weights, activation, data, labels):
+        model = reconstruct_network(weights, activation)
+        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
+        return total_accuracy, accuracy_after
 
 def main():
     args = parse_args()
@@ -125,6 +132,11 @@ def main():
         n_outputs=accuracies_val.shape[1],
     )
 
+    # get dataset for baseline finetune ascent
+    ft_dataset = get_tf_dataset(args.dataset, batchsize=512)
+    ft_data_tr, data_te, dataset_info = ft_dataset
+    ft_data_tr = ft_data_tr.unbatch().filter(lambda x, y: y == args.target_class).batch(512)
+
     for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
         network = weights_val[model_idx]
         accuracy = accuracies_val[model_idx]
@@ -141,17 +153,21 @@ def main():
             stopping_criterium=stopping_criterium,
         )
         edited_network = state.weights.squeeze(0).detach()
-        model = reconstruct_network(edited_network.numpy(), config["config.activation"])
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        total_accuracy, accuracy_after = evaluate_classifier(model, x_test, y_test)
+        # baselines
+        rv_weights = random_vector(network, edited_network)
+        fa_weights = finetune_ascent(network, config, ft_data_tr, steps=state.step)
+
+        acc_after_edit, per_class_acc_after_edit = evaluate_network(edited_network.numpy(), config["config.activation"], x_test, y_test)
+        acc_after_rv, per_class_acc_after_rv = evaluate_network(rv_weights, config["config.activation"], x_test, y_test)
+        acc_after_fa, per_class_acc_after_fa = evaluate_network(fa_weights, config["config.activation"], x_test, y_test)
 
         row = pd.DataFrame(
             [
                 {
                     "model_idx": model_idx,
                     "original_accuracy": list(accuracy),
-                    "accuracy_after": accuracy_after,
-                    "overall_accuracy": total_accuracy,
+                    "accuracy_after": per_class_acc_after_edit,
+                    "overall_accuracy": acc_after_edit,
                     "target_class": args.target_class,
                     "dataset": args.dataset,
                     "lr": args.lr,
@@ -168,6 +184,11 @@ def main():
                     "init_pred": list(state.init_pred.numpy()),
                     "final_pred": list(state.pred.numpy()),
                     "meta_network": meta_network_path,
+                    # baselines
+                    "accuracy_after_rv": per_class_acc_after_rv,
+                    "overall_accuracy_rv": acc_after_rv,
+                    "accuracy_after_fa": per_class_acc_after_fa,
+                    "overall_accuracy_fa": acc_after_fa,
                 }
             ]
         )
