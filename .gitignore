@@ -2,6 +2,7 @@
 *.pdf
 
 # ignore model experiment files
+**/metanetworks/
 metanetworks/pt/good_bad_experiment_2/
 metanetworks/pt/good_bad_experiment/
 
