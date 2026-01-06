@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
-# config – pulled from your best_configs entry @simonilic wat betekent deze comment?
+# config – pulled from your `configs/best_metanetwork_hyperparams.json`
 default_config = dict(
     optimizer_name="Adam",
     learning_rate=4e-4,
@@ -91,9 +91,16 @@ def mse_mae(model, loader, device="None"):
 # ---------------------------------------------------------------------
 # 4. Trainer ─ replicates fit() + EarlyStopping
 # ---------------------------------------------------------------------
-def train_torch_dnn(train_x, train_y, val_x, val_y, config, device=None, verbose: bool = False):
+def train_torch_dnn(train_x, train_y, val_x, val_y, config, device=None, verbose: bool = False, seed: int | None = None):
     if device is None:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+
+    # ---------- reproducibility ----------
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
 
     # ---------- data ----------
     train_ds = TensorDataset(torch.as_tensor(train_x, dtype=torch.float32), torch.as_tensor(train_y, dtype=torch.float32))
@@ -226,6 +233,7 @@ def get_regressor_lens(
     return_metrics: bool = False,
     device: str | None = None,
     verbose: bool = False,
+    seed: int | None = None,
 ) -> torch.nn.Module | Tuple[torch.nn.Module, Any]:
     """
     Trains a DNN (MLP) regressor model on the provided training data and evaluates it on the validation data.
@@ -237,11 +245,16 @@ def get_regressor_lens(
         outputs_val (np.ndarray): Validation target outputs.
         config (dict, optional): Configuration dictionary for the regressor MLP. Defaults to default_config.
         return_metrics (bool, optional): If True, also returns training and validation metrics. Defaults to False.
+        device (str, optional): Device to train on. Defaults to auto-detect.
+        verbose (bool, optional): Print training progress. Defaults to False.
+        seed (int, optional): Random seed for reproducibility. Defaults to None.
 
     Returns:
         torch.nn.Module or Tuple[torch.nn.Module, Tuple]: The trained regressor model, and optionally the evaluation metrics.
     """
-    model, metrics = train_torch_dnn(weights_train, outputs_train, weights_val, outputs_val, config, device, verbose=verbose)
+    model, metrics = train_torch_dnn(
+        weights_train, outputs_train, weights_val, outputs_val, config, device, verbose=verbose, seed=seed
+    )
     if return_metrics:
         return model, metrics
     return model
