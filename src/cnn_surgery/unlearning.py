@@ -63,7 +63,8 @@ def step_stop_factory(max_steps=100):
     return step_stop
 
 def unlearn(model_weights, meta_network: th.nn.Module, target_class,
-            max_steps=100, lr=0.01, loss_fn=boost_loss, stopping_criterium=acc_pred_stop, l2_penalty=1e-6):
+            max_steps=100, lr=0.01, loss_fn=boost_loss, stopping_criterium=acc_pred_stop, l2_penalty=1e-6,
+            step_callback=None):
     """
     Unlearn a target class from the model using a meta-network to guide weight updates.
 
@@ -73,7 +74,8 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     - target_class: The class index to be unlearned.
     - max_steps: Maximum number of unlearning steps.
     - lr: Learning rate (step-size) for weight updates.
-    - eps: Convergence threshold.
+    - l2_penalty: L2 regularization penalty.
+    - step_callback: Optional callable(step, pred, weights) called at each step for tracking.
 
     Returns:
     - Updated model weights after unlearning. (as tensor), metrics
@@ -86,7 +88,11 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     for step in range(max_steps):
         # forward pass through meta-network
         acc_pred = meta_network(weights.unsqueeze(0)).squeeze(0)
-        
+
+        # call step callback for tracking (e.g., faithfulness metrics)
+        if step_callback is not None:
+            step_callback(step, acc_pred.detach().clone(), weights.detach().clone())
+
         # compute loss to unlearn target class
         loss = loss_fn(acc_pred, target_class) + l2_penalty * l2_regularisation(weights)
         loss.backward()
