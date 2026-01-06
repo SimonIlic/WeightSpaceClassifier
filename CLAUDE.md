@@ -18,6 +18,14 @@ The codebase uses the "Small CNN Zoo" dataset from Unterthiner et al. (2020) "Pr
 
 It is scientific work, with the aim of publishing at a top ML conference. The code is structured for research experiments, reproducibility, and extensibility. 
 
+## HPC Environment (Snellius)
+
+Sometimes runs for this project are performed on a HPC cluster. Specifically on **Snellius**, the Dutch national supercomputer operated by SURF.
+
+- **Documentation**: https://servicedesk.surf.nl/wiki/spaces/WIKI/pages/30660184/Snellius
+- **Login nodes**: Access via SSH
+- **Job scheduler**: Slurm
+
 ## Installation and Environment
 
 ```bash
