@@ -1,3 +1,23 @@
+"""
+Evaluate unlearning across multiple models from the CNN Zoo.
+
+This script applies the metanetwork-guided unlearning algorithm to models from
+the Small CNN Zoo dataset and compares against baseline methods.
+
+Workflow:
+    1. Load CNN weights from the model zoo (train or validation split)
+    2. Load the trained metanetwork for the target dataset
+    3. For each model:
+       a. Apply unlearning via gradient descent on metanetwork input
+       b. Compute baselines (random vector, finetune ascent)
+       c. Evaluate all methods on the test set
+    4. Save per-model results to CSV (appends incrementally)
+
+Usage:
+    python evaluate_models.py -c 3 -d mnist --meta-network-path meta_network_mnist.pkl
+    python evaluate_models.py -c 0 -d fashion_mnist -n 100 --lr 0.05
+"""
+
 import argparse
 import os
 import pickle
@@ -46,7 +66,9 @@ def build_stopping_criterium(name: str, args):
         return cosine_similarity_stop_factory(derivative=True, eps=1 - stop_threshold)
     elif name == "step":
         if stop_threshold is not None:
-            raise ValueError("stop_threshold is not used with 'step' stopping criterium, use max_steps instead.")
+            raise ValueError(
+                "stop_threshold is not used with 'step' stopping criterium, use max_steps instead."
+            )
         return step_stop_factory(max_steps=int(args.max_steps))
     raise ValueError(f"Unsupported stopping criterium: {name}")
 
@@ -77,17 +99,26 @@ def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int):
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
     parser.add_argument(
-        "-n", "--n-models", type=int, default=None, help="Number of models to evaluate. If None, evaluate all models."
+        "-n",
+        "--n-models",
+        type=int,
+        default=None,
+        help="Number of models to evaluate. If None, evaluate all models.",
     )
     parser.add_argument("-c", "--target-class", type=int, help="Class index to unlearn.")
     parser.add_argument("-d","--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])  # fmt: skip
     parser.add_argument("-o", "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
     parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
-    parser.add_argument("--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium.")
+    parser.add_argument(
+        "--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium."
+    )
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
     parser.add_argument(
-        "--loss-fn", choices=["simple", "boost", "improve"], default="simple", help="Loss function used during unlearning."
+        "--loss-fn",
+        choices=["simple", "boost", "improve"],
+        default="simple",
+        help="Loss function used during unlearning.",
     )
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
     parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
@@ -102,11 +133,13 @@ def parse_args():
     )
     return parser.parse_args()
 
+
 def evaluate_network(weights, activation, data, labels):
-        model = reconstruct_network(weights, activation)
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
-        return total_accuracy, accuracy_after
+    model = reconstruct_network(weights, activation)
+    model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+    total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
+    return total_accuracy, accuracy_after
+
 
 def main():
     args = parse_args()
@@ -121,7 +154,9 @@ def main():
     # test set for CNN evaluation after unlearning (image data, labels)
     x_test, y_test = load_testset_data(args.dataset)
     # models to unlearn (CNN weights, per-class accuracies, config)
-    train_data, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
+    train_data, _, val_data = load_dataset(
+        dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True
+    )
     weights_val, metrics_val, config_val = train_data if args.weights_set == "train" else val_data
     accuracies_val = metrics_val[:, -10:]
     n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
@@ -157,9 +192,15 @@ def main():
         rv_weights = random_vector(network, edited_network)
         fa_weights = finetune_ascent(network, config, ft_data_tr, steps=state.step)
 
-        acc_after_edit, per_class_acc_after_edit = evaluate_network(edited_network.numpy(), config["config.activation"], x_test, y_test)
-        acc_after_rv, per_class_acc_after_rv = evaluate_network(rv_weights, config["config.activation"], x_test, y_test)
-        acc_after_fa, per_class_acc_after_fa = evaluate_network(fa_weights, config["config.activation"], x_test, y_test)
+        acc_after_edit, per_class_acc_after_edit = evaluate_network(
+            edited_network.numpy(), config["config.activation"], x_test, y_test
+        )
+        acc_after_rv, per_class_acc_after_rv = evaluate_network(
+            rv_weights, config["config.activation"], x_test, y_test
+        )
+        acc_after_fa, per_class_acc_after_fa = evaluate_network(
+            fa_weights, config["config.activation"], x_test, y_test
+        )
 
         row = pd.DataFrame(
             [
@@ -193,7 +234,9 @@ def main():
             ]
         )
         # this is nice because even if the csv already exists, we can append new models to it
-        row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
+        row.to_csv(
+            args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False
+        )
 
 
 if __name__ == "__main__":
