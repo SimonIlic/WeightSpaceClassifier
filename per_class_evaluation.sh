@@ -1,6 +1,6 @@
 dataset='fashion_mnist'
 for cls in 0 1 2 3 4 5 6 7 8 9; do                                                                                                                                              
-python evaluate_models.py \
+python src/cnn_surgery/evaluate_models.py \
     -c=$cls \
     -d=$dataset \
     --stopping-criterium='acc_pred' \
