@@ -2,7 +2,6 @@ from math import prod
 
 import numpy as np
 
-# typing imports
 import tensorflow as tf
 
 from cnn_surgery.utils.train_network import build_cnn
@@ -28,7 +27,7 @@ def reconstruct_network(weights: np.ndarray, activation: str, l2_penalty=0.0, dr
     Returns:
         tf.keras.Model: The reconstructed CNN model. (needs to be compiled before use)
     """
-    w_reg = tf.keras.regularizers.l2(l2_penalty) if l2_penalty > 0.0 else None
+    w_reg = tf.keras.regularizers.l2(l2_penalty) if l2_penalty > 0.0 else None  # type: ignore
     model = build_cnn(
         n_layers=3,
         n_hidden=16,
