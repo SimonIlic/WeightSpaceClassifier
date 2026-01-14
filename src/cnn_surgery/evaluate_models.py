@@ -170,7 +170,7 @@ def main():
         edited_network = state.weights.squeeze(0).detach()
         # baselines
         rv_weights = random_vector(network, edited_network)
-        fa_weights = finetune_ascent(network, config, ft_data_tr, steps=state.step)
+        fa_weights = finetune_ascent(network, config, ft_data_tr, steps=state.step, verbose=False)
 
         acc_after_edit, per_class_acc_after_edit = evaluate_network(
             edited_network.numpy(), config["config.activation"], x_test, y_test

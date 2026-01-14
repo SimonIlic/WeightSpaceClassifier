@@ -5,7 +5,7 @@ from cnn_surgery.utils.reconstruct_network import reconstruct_network, SHAPES
 from cnn_surgery.utils.process_models import _flatten_weights_for_reconstruction
 
 
-def finetune_ascent(weights, config, data, steps):
+def finetune_ascent(weights, config, data, steps, verbose=True):
     """Baseline finetuning using gradient ascent on the forget task. As in Ilharco et al., Golatkar et al., Tarun et al."""
     model = reconstruct_network(
         weights, activation=config["config.activation"], l2_penalty=config["config.l2reg"], dropout_rate=config["config.dropout"]
@@ -21,7 +21,7 @@ def finetune_ascent(weights, config, data, steps):
     )
 
     # Single epoch training with fixed steps
-    model.fit(data, epochs=1, steps_per_epoch=steps, verbose=True)
+    model.fit(data, epochs=1, steps_per_epoch=steps, verbose=verbose)
 
     # convert model back to raw weight vector
     model_weights = model.get_weights()
