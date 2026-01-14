@@ -4,19 +4,22 @@ import numpy as np
 from cnn_surgery.utils.reconstruct_network import reconstruct_network, SHAPES
 from cnn_surgery.utils.process_models import _flatten_weights_for_reconstruction
 
+
 def finetune_ascent(weights, config, data, steps):
     """Baseline finetuning using gradient ascent on the forget task. As in Ilharco et al., Golatkar et al., Tarun et al."""
-    model = reconstruct_network(weights, activation=config["config.activation"], l2_penalty=config['config.l2reg'], dropout_rate=config['config.dropout'])
+    model = reconstruct_network(
+        weights, activation=config["config.activation"], l2_penalty=config["config.l2reg"], dropout_rate=config["config.dropout"]
+    )
     loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     optimizer = keras.optimizers.get(config["config.optimizer"])
-    optimizer.learning_rate = config["config.learning_rate"]
+    optimizer.learning_rate = config["config.learning_rate"]  # type: ignore
     # Compile with negated loss for gradient ascent
     model.compile(
         optimizer=optimizer,
-        loss=lambda y_true, y_pred: -loss(y_true, y_pred),  # gradient ASCENT
+        loss=lambda y_true, y_pred: -loss(y_true, y_pred),  # gradient ASCENT # type: ignore
         metrics=["accuracy"],
     )
-        
+
     # Single epoch training with fixed steps
     model.fit(data, epochs=1, steps_per_epoch=steps, verbose=True)
 
@@ -24,6 +27,7 @@ def finetune_ascent(weights, config, data, steps):
     model_weights = model.get_weights()
     flat_weights = _flatten_weights_for_reconstruction(model_weights)
     return flat_weights
+
 
 def random_vector(original_weights, edit_weights):
     """Baseline generate a random edit where each layer has the same magnitude as the corresponding layer of the proposed edit. As described in Ilharco et al."""
@@ -43,7 +47,8 @@ def random_vector(original_weights, edit_weights):
 
 if __name__ == "__main__":
     from cnn_surgery.utils.train_network import get_dataset
-    #NOTE: Unterthiner does not mention batch size, using default from their codebase
+
+    # NOTE: Unterthiner does not mention batch size, using default from their codebase
     dataset = get_dataset("mnist", batchsize=512)
 
     example_weights = np.array([0.1] * sum(prod(shape) for shape in SHAPES.values()))
@@ -52,9 +57,11 @@ if __name__ == "__main__":
     # filter data_tr to only include class 7
     data_tr = data_tr.unbatch().filter(lambda x, y: y == 7).batch(512)
 
-    ft = finetune_ascent(example_weights,
-                         config={'activation': 'relu', 'optimizer': 'adam', 'learning_rate': 0.001, 'l2_penalty': 0.01},
-                         data=data_tr,
-                         steps=100)
+    ft = finetune_ascent(
+        example_weights,
+        config={"activation": "relu", "optimizer": "adam", "learning_rate": 0.001, "l2_penalty": 0.01},
+        data=data_tr,
+        steps=100,
+    )
 
     rd = random_vector(example_weights, example_weights + 0.01)
