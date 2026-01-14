@@ -42,6 +42,7 @@ from cnn_surgery.utils.load_dataset import load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
 from cnn_surgery.baselines import random_vector, finetune_ascent
 from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset
+from cnn_surgery.utils.benchmark_suite import js_similarity_score
 
 
 def build_loss_fn(name: str, boost_beta: float):
@@ -66,9 +67,7 @@ def build_stopping_criterium(name: str, args):
         return cosine_similarity_stop_factory(derivative=True, eps=1 - stop_threshold)
     elif name == "step":
         if stop_threshold is not None:
-            raise ValueError(
-                "stop_threshold is not used with 'step' stopping criterium, use max_steps instead."
-            )
+            raise ValueError("stop_threshold is not used with 'step' stopping criterium, use max_steps instead.")
         return step_stop_factory(max_steps=int(args.max_steps))
     raise ValueError(f"Unsupported stopping criterium: {name}")
 
@@ -110,9 +109,7 @@ def parse_args():
     parser.add_argument("-o", "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
     parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
-    parser.add_argument(
-        "--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium."
-    )
+    parser.add_argument("--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium.")
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
     parser.add_argument(
         "--loss-fn",
@@ -154,11 +151,10 @@ def main():
     # test set for CNN evaluation after unlearning (image data, labels)
     x_test, y_test = load_testset_data(args.dataset)
     # models to unlearn (CNN weights, per-class accuracies, config)
-    train_data, _, val_data = load_dataset(
-        dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True
-    )
+    train_data, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
     weights_val, metrics_val, config_val = train_data if args.weights_set == "train" else val_data
     accuracies_val = metrics_val[:, -10:]
+    overall_accuracies_val = metrics_val[:, 0]  # test_accuracy column
     n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
 
     metanetwork = load_meta_network(
@@ -175,6 +171,7 @@ def main():
     for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
         network = weights_val[model_idx]
         accuracy = accuracies_val[model_idx]
+        overall_accuracy_before = overall_accuracies_val[model_idx]
         config = config_val.iloc[model_idx]
 
         state = unlearn(
@@ -195,18 +192,18 @@ def main():
         acc_after_edit, per_class_acc_after_edit = evaluate_network(
             edited_network.numpy(), config["config.activation"], x_test, y_test
         )
-        acc_after_rv, per_class_acc_after_rv = evaluate_network(
-            rv_weights, config["config.activation"], x_test, y_test
-        )
-        acc_after_fa, per_class_acc_after_fa = evaluate_network(
-            fa_weights, config["config.activation"], x_test, y_test
-        )
+        acc_after_rv, per_class_acc_after_rv = evaluate_network(rv_weights, config["config.activation"], x_test, y_test)
+        acc_after_fa, per_class_acc_after_fa = evaluate_network(fa_weights, config["config.activation"], x_test, y_test)
+
+        js_similarity_edit_rv = js_similarity_score(edited_network.numpy(), rv_weights, x_test, y_test)
+        js_similarity_edit_fa = js_similarity_score(edited_network.numpy(), fa_weights, x_test, y_test)
 
         row = pd.DataFrame(
             [
                 {
                     "model_idx": model_idx,
                     "original_accuracy": list(accuracy),
+                    "original_overall_accuracy": overall_accuracy_before,
                     "accuracy_after": per_class_acc_after_edit,
                     "overall_accuracy": acc_after_edit,
                     "target_class": args.target_class,
@@ -230,13 +227,13 @@ def main():
                     "overall_accuracy_rv": acc_after_rv,
                     "accuracy_after_fa": per_class_acc_after_fa,
                     "overall_accuracy_fa": acc_after_fa,
+                    "js_similarity_edit_rv": js_similarity_edit_rv,
+                    "js_similarity_edit_fa": js_similarity_edit_fa,
                 }
             ]
         )
         # this is nice because even if the csv already exists, we can append new models to it
-        row.to_csv(
-            args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False
-        )
+        row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
 
 
 if __name__ == "__main__":
