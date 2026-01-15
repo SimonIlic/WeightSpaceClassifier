@@ -149,7 +149,6 @@ def main():
     # get dataset for baseline finetune ascent
     ft_dataset = get_tf_dataset(args.dataset, batchsize=512)
     ft_data_tr, data_te, dataset_info = ft_dataset
-    ft_data_tr = ft_data_tr.unbatch().filter(lambda x, y: y == args.target_class).batch(512)
 
     for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
         network = weights_val[model_idx]
@@ -170,7 +169,7 @@ def main():
         edited_network = state.weights.squeeze(0).detach()
         # baselines
         rv_weights = random_vector(network, edited_network)
-        fa_weights = finetune_ascent(network, config, ft_data_tr, steps=state.step, verbose=False)
+        fa_weights = finetune_ascent(network, config, ft_data_tr, forget_class=args.target_class, steps=state.step, verbose=False)
 
         acc_after_edit, per_class_acc_after_edit = evaluate_network(
             edited_network.numpy(), config["config.activation"], x_test, y_test
