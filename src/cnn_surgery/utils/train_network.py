@@ -45,9 +45,7 @@ CNN_KERNEL_SIZE = 3
 flags.DEFINE_integer("num_layers", 3, "Number of layers in the network.")
 flags.DEFINE_integer("num_units", 16, "Number of units in a dense layer.")
 flags.DEFINE_integer("batchsize", 512, "Size of the mini-batch.")
-flags.DEFINE_float(
-    "train_fraction", 1.0, "How much of the dataset to use fortraining [as fraction]: eg. 0.15, 0.5, 1.0"
-)
+flags.DEFINE_float("train_fraction", 1.0, "How much of the dataset to use fortraining [as fraction]: eg. 0.15, 0.5, 1.0")
 flags.DEFINE_integer("epochs", 18, "How many epochs to train for")
 flags.DEFINE_integer("epochs_between_checkpoints", 6, "How many epochs to train between creating checkpoints")
 flags.DEFINE_integer("random_seed", 42, "Random seed.")
@@ -65,9 +63,7 @@ flags.DEFINE_boolean("augment_traindata", False, "Augmenting Training data.")
 flags.DEFINE_boolean("reduce_learningrate", False, "Reduce LR towards end of training.")
 flags.DEFINE_string("dataset", "mnist", "Name of the dataset compatible with TFDS.")
 flags.DEFINE_string("dnn_architecture", "cnn", "Architecture of the DNN [fc, cnn, cnnbn]")
-flags.DEFINE_string(
-    "workdir", "/tmp/dnn_science_workdir", "Base working directory for storingcheckpoints, summaries, etc."
-)
+flags.DEFINE_string("workdir", "/tmp/dnn_science_workdir", "Base working directory for storingcheckpoints, summaries, etc.")
 flags.DEFINE_integer("verbose", 0, "Verbosity")
 flags.DEFINE_bool("use_tpu", False, "Whether running on TPU or not.")
 flags.DEFINE_string("master", "local", 'Name of the TensorFlow master to use. "local" for GPU.')
@@ -182,9 +178,7 @@ def get_dataset(
     return data_tr, data_te, dataset_info
 
 
-def build_cnn(
-    n_layers, n_hidden, n_outputs, dropout_rate, activation, stride, w_regularizer, w_init, b_init, use_batchnorm
-):
+def build_cnn(n_layers, n_hidden, n_outputs, dropout_rate, activation, stride, w_regularizer, w_init, b_init, use_batchnorm):
     """Convolutional deep neural network."""
     model = tf.keras.Sequential()
     for _ in range(n_layers):
@@ -205,9 +199,7 @@ def build_cnn(
             model.add(tf.keras.layers.BatchNormalization())
     model.add(tf.keras.layers.GlobalAveragePooling2D())
     model.add(
-        tf.keras.layers.Dense(
-            n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init
-        )
+        tf.keras.layers.Dense(n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init)
     )
     return model
 
@@ -231,9 +223,7 @@ def build_fcn(n_layers, n_hidden, n_outputs, dropout_rate, activation, w_regular
         if use_batchnorm:
             model.add(tf.keras.layers.BatchNormalization())
     model.add(
-        tf.keras.layers.Dense(
-            n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init
-        )
+        tf.keras.layers.Dense(n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init)
     )
     return model
 
