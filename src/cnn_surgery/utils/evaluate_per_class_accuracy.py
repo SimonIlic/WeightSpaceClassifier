@@ -71,6 +71,24 @@ def evaluate_classifier(
     return overall_acc, per_class_acc
 
 
+def evaluate_model_from_weights(
+    weights: np.ndarray, config: dict, x_test: np.ndarray, y_test: np.ndarray
+) -> Tuple[float, List[float]]:
+    """
+    Reconstruct model from just the flat weights array and a config dict, and evaluate per-class accuracy.
+    """
+    model = reconstruct_network(
+        weights, activation=config["config.activation"], l2_penalty=config["config.l2reg"], dropout_rate=config["config.dropout"]
+    )
+    model.compile(
+        optimizer="adam",
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),  # type: ignore
+        metrics=["accuracy"],
+    )
+    overall_acc, per_class_acc = evaluate_classifier(model, x_test, y_test)
+    return overall_acc, per_class_acc
+
+
 def load_testset_data(dataset: str):
     """
     Load the test set data for the specified dataset.
@@ -109,7 +127,7 @@ def load_testset_data(dataset: str):
     return x_test, y_test
 
 
-def main(dataset: str = DATASET, stage: str = 'final'):
+def main(dataset: str = DATASET, stage: str = "final"):
     # if output csv file exists raise error
     if os.path.exists(f"{dataset}_{stage}_model_results.csv"):
         raise FileExistsError(
