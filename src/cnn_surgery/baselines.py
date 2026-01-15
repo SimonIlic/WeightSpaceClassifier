@@ -5,7 +5,7 @@ from cnn_surgery.utils.reconstruct_network import reconstruct_network, SHAPES
 from cnn_surgery.utils.process_models import _flatten_weights_for_reconstruction
 
 
-def finetune_ascent(weights, config, data, forget_class, steps, verbose=True) -> np.ndarray:
+def finetune_ascent(weights, config, data, forget_class, steps, verbose=True):
     """Baseline finetuning using gradient ascent on the forget task.
 
     As in Ilharco et al., Golatkar et al., Tarun et al.
@@ -46,7 +46,7 @@ def finetune_ascent(weights, config, data, forget_class, steps, verbose=True) ->
     return flat_weights
 
 
-def finetune_retain(weights, config, data, forget_class, epochs=5, steps=None, verbose=True) -> np.ndarray:
+def finetune_retain(weights, config, data, forget_class, epochs=5, steps=None, verbose=True) -> np.ndarray:  # type: ignore
     """Baseline finetuning on the retain set (standard supervised learning).
 
     As described in Golatkar et al. (2020) & Foster et al. (2024): Selective Synaptic Dampening (2024).
