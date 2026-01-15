@@ -14,7 +14,7 @@ class UnlearnState:
     loss: float
     grads: list
     distance_travelled: float
-    init_pred: th.Tensor = None  # optional, only set at the start
+    init_pred: th.Tensor
 
 def boost_loss_factory(beta=0.1):
     """Return a boost_loss(pred, target_class) function with given beta."""
@@ -40,10 +40,14 @@ def l2_regularisation(weights):
     """ L2 regularization on model weights."""
     return th.sum(weights ** 2)
 
-def acc_pred_stop_factory(threshold=0.1):
+def acc_pred_stop_factory(threshold=0.1, relative=False):
     """Return a stopping function that checks predicted accuracy for target class below threshold."""
-    def acc_pred_stop(state: UnlearnState):
-        return state.pred[state.target_class] < threshold
+    if relative:
+        def acc_pred_stop(state: UnlearnState):
+            return state.pred[state.target_class] < state.init_pred[state.target_class] * threshold
+    else:
+        def acc_pred_stop(state: UnlearnState):
+            return state.pred[state.target_class] < threshold
     return acc_pred_stop
 
 # backward-compatible default
@@ -104,7 +108,8 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
                              loss=loss.item(), 
                              grads=grads, 
                              target_class=target_class,
-                             distance_travelled=distance_travelled)
+                             distance_travelled=distance_travelled,
+                             init_pred=initial_prediction)
         # stop if stopping criterium is met
         if stopping_criterium(state):
             break

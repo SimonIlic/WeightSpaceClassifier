@@ -61,6 +61,8 @@ def build_stopping_criterium(name: str, args):
     stop_threshold = args.stop_threshold
     if name == "acc_pred":
         return acc_pred_stop_factory(stop_threshold)
+    elif name == "acc_pred_relative":
+        return acc_pred_stop_factory(stop_threshold, relative=True)
     elif name == "cosine_similarity":
         return cosine_similarity_stop_factory(derivative=False, eps=1 - stop_threshold)
     elif name == "cosine_similarity_diff":
@@ -101,13 +103,13 @@ def parse_args():
     parser.add_argument("-c", "--target-class", type=int, help="Class index to unlearn.")  # fmt: skip
     parser.add_argument("-d","--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])  # fmt: skip
     parser.add_argument("-o", "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
-    parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")  # fmt: skip
+    parser.add_argument("--max-steps", type=int, default=2000, help="Max unlearning steps.")  # fmt: skip
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")  # fmt: skip
     parser.add_argument("--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium.")  # fmt: skip
     parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")  # fmt: skip
     parser.add_argument("--loss-fn", choices=["simple", "boost", "improve"], default="simple", help="Loss function used during unlearning.")  # fmt: skip
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
-    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
+    parser.add_argument("--stopping-criterium", choices=["acc_pred", "acc_pred_relative", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
     parser.add_argument("--meta-network-path", type=str, help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
     parser.add_argument("--weights-set", type=str, default="val", choices=["train", "val"], help="Which set of weights to use for unlearning (train or val).")  # fmt: skip
