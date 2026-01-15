@@ -41,7 +41,7 @@ from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, l
 from cnn_surgery.utils.load_dataset import load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
 from cnn_surgery.baselines import random_vector, finetune_ascent
-from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset
+from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset  # FUCKED
 from cnn_surgery.utils.benchmark_suite import js_similarity_score
 
 
