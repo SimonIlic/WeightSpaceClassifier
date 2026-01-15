@@ -40,7 +40,7 @@ from cnn_surgery.unlearning import (  # fmt: skip
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
 from cnn_surgery.utils.load_dataset import load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
-from cnn_surgery.baselines import random_vector, finetune_ascent
+from cnn_surgery.baselines import finetune_retain, random_vector, finetune_ascent
 from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset  # FUCKED
 from cnn_surgery.utils.benchmark_suite import js_similarity_score
 
@@ -172,16 +172,18 @@ def main():
         # baselines
         rv_weights = random_vector(network, edited_network)
         fa_weights = finetune_ascent(network, config, ft_data_tr, forget_class=args.target_class, steps=state.step, verbose=False)
+        fr_weights = finetune_retain(network, config, ft_data_tr, forget_class=args.target_class, steps=state.step, verbose=False)
 
         acc_after_edit, per_class_acc_after_edit = evaluate_network(
             edited_network.numpy(), config["config.activation"], x_test, y_test
         )
         acc_after_rv, per_class_acc_after_rv = evaluate_network(rv_weights, config["config.activation"], x_test, y_test)
         acc_after_fa, per_class_acc_after_fa = evaluate_network(fa_weights, config["config.activation"], x_test, y_test)
+        acc_after_fr, per_class_acc_after_fr = evaluate_network(fr_weights, config["config.activation"], x_test, y_test)
 
         js_similarity_edit_rv = js_similarity_score(edited_network.numpy(), rv_weights, config["config.activation"], x_test)
         js_similarity_edit_fa = js_similarity_score(edited_network.numpy(), fa_weights, config["config.activation"], x_test)
-
+        js_similarity_edit_fr = js_similarity_score(edited_network.numpy(), fr_weights, config["config.activation"], x_test)
         row = pd.DataFrame(
             [
                 {
@@ -211,8 +213,11 @@ def main():
                     "overall_accuracy_rv": acc_after_rv,
                     "accuracy_after_fa": per_class_acc_after_fa,
                     "overall_accuracy_fa": acc_after_fa,
+                    "accuracy_after_fr": per_class_acc_after_fr,
+                    "overall_accuracy_fr": acc_after_fr,
                     "js_similarity_edit_rv": js_similarity_edit_rv,
                     "js_similarity_edit_fa": js_similarity_edit_fa,
+                    "js_similarity_edit_fr": js_similarity_edit_fr,
                 }
             ]
         )
