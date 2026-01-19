@@ -71,6 +71,12 @@ flags.DEFINE_string(
     "tpu_job_name", "tpu_worker", "Name of the TPU worker job. This is required when having multiple TPU worker jobs."
 )
 flags.DEFINE_integer("exclude_class", None, "Class (int) to exclude from training set.")
+flags.DEFINE_string(
+    "config",
+    None,
+    "Path to JSON config file with optimal hyperparameters. "
+    "Values from config override flag defaults for: activation, optimizer, w_init, b_init, init_std, dropout, learning_rate, l2reg.",
+)
 
 
 def _get_workunit_params():
@@ -146,33 +152,37 @@ def get_dataset(
       tuple (training_dataset, test_dataset, info), where info is a dictionary
       with some relevant information about the dataset.
     """
-    data_tr, ds_info = tfds.load(dataset, split="train", with_info=True)
+    data_tr, ds_info = tfds.load(dataset, split="train", with_info=True)  # type: ignore
     effective_train_size = ds_info.splits["train"].num_examples
 
     if train_fraction < 1.0:
         effective_train_size = int(effective_train_size * train_fraction)
-        data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)
+        data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)  # type: ignore
         data_tr = data_tr.take(effective_train_size)
 
     # Filter out class
     if exclude_class is not None:
-        data_tr = data_tr.filter(lambda b: tf.not_equal(b["label"], exclude_class))
+        data_tr = data_tr.filter(lambda b: tf.not_equal(b["label"], exclude_class))  # type: ignore
 
-    fn_tr = lambda b: _preprocess_batch(b, normalize, to_grayscale, augment)
-    data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)
+    def fn_tr(b):
+        return _preprocess_batch(b, normalize, to_grayscale, augment)
+
+    data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)  # type: ignore
     data_tr = data_tr.batch(batchsize, drop_remainder=True)
     data_tr = data_tr.map(fn_tr, num_parallel_calls=1)
     data_tr = data_tr.prefetch(1)
 
-    fn_te = lambda b: _preprocess_batch(b, normalize, to_grayscale, False)
-    data_te = tfds.load(dataset, split="test")
-    data_te = data_te.batch(batchsize)
+    def fn_te(b):
+        return _preprocess_batch(b, normalize, to_grayscale, False)
+
+    data_te = tfds.load(dataset, split="test")  # type: ignore
+    data_te = data_te.batch(batchsize)  # type: ignore
     data_te = data_te.map(fn_te, num_parallel_calls=1)
     data_te = data_te.prefetch(1)
 
     dataset_info = {
-        "num_classes": ds_info.features["label"].num_classes,
-        "data_shape": ds_info.features["image"].shape,
+        "num_classes": ds_info.features["label"].num_classes,  # type: ignore
+        "data_shape": ds_info.features["image"].shape,  # type: ignore
         "train_num_examples": effective_train_size,
     }
     return data_tr, data_te, dataset_info
@@ -268,7 +278,7 @@ def run(
     b_init_name="zero",
     optimizer_name="sgd",
     learning_rate=0.01,
-    n_epochs=18,
+    n_epochs=86,
     epochs_between_checkpoints=6,
     init_stddev=0.05,
     cnn_stride=2,
@@ -276,10 +286,10 @@ def run(
     verbosity=0,
 ):
     """Runs the whole training procedure."""
-    data_tr, data_te, dataset_info = data
+    data_tr, data_te, dataset_info = data  # type: ignore
     n_outputs = dataset_info["num_classes"]
 
-    with strategy.scope():
+    with strategy.scope():  # type: ignore
         optimizer = tf.keras.optimizers.get(optimizer_name)
         optimizer.learning_rate = learning_rate
         w_init = tf.keras.initializers.get(w_init_name)
@@ -327,7 +337,7 @@ def run(
     if ckpt_manager.latest_checkpoint:
         logging.info("restoring checkpoint: %s", ckpt_manager.latest_checkpoint)
         print("restoring from %s" % ckpt_manager.latest_checkpoint)
-        with strategy.scope():
+        with strategy.scope():  # type: ignore
             ckpt.restore(ckpt_manager.latest_checkpoint)
         info = restore_results(os.path.join(workdir, ".intermediate-results.json"))
         print(info, flush=True)
@@ -383,11 +393,42 @@ def run(
     gfile.remove(os.path.join(workdir, ".intermediate-results.json"))
 
 
+def _load_config_for_dataset(config_path: str, dataset: str) -> dict:
+    """Load hyperparameters from JSON config file for a specific dataset."""
+    with gfile.GFile(config_path, "r") as f:
+        config = json.load(f)
+    if dataset not in config:
+        raise ValueError(f"Dataset '{dataset}' not found in config. Available: {list(config.keys())}")
+    return config[dataset]
+
+
 def main(unused_argv):
     workdir = FLAGS.workdir
 
     if not gfile.isdir(workdir):
         gfile.makedirs(workdir)
+
+    activation = FLAGS.activation
+    optimizer = FLAGS.optimizer
+    w_init = FLAGS.w_init
+    b_init = FLAGS.b_init
+    init_std = FLAGS.init_std
+    dropout = FLAGS.dropout
+    learning_rate = FLAGS.learning_rate
+    l2reg = FLAGS.l2reg
+
+    # Load hyperparameters from config file if provided
+    if FLAGS.config:
+        config = _load_config_for_dataset(FLAGS.config, FLAGS.dataset)
+        activation = config.get("activation", activation)
+        optimizer = config.get("optimizer", optimizer)
+        w_init = config.get("w_init", w_init)
+        b_init = config.get("b_init", b_init)
+        init_std = config.get("init_std", init_std)
+        dropout = config.get("dropout", dropout)
+        learning_rate = config.get("learning_rate", learning_rate)
+        l2reg = config.get("l2reg", l2reg)
+        logging.info("Loaded config for %s: %s", FLAGS.dataset, config)
 
     tf.random.set_seed(FLAGS.random_seed)
     np.random.seed(FLAGS.random_seed)
@@ -433,16 +474,16 @@ def main(unused_argv):
         architecture=FLAGS.dnn_architecture,
         n_layers=FLAGS.num_layers,
         n_hiddens=FLAGS.num_units,
-        activation=FLAGS.activation,
-        dropout_rate=FLAGS.dropout,
-        l2_penalty=FLAGS.l2reg,
-        w_init_name=FLAGS.w_init,
-        b_init_name=FLAGS.b_init,
-        optimizer_name=FLAGS.optimizer,
-        learning_rate=FLAGS.learning_rate,
+        activation=activation,
+        dropout_rate=dropout,
+        l2_penalty=l2reg,
+        w_init_name=w_init,
+        optimizer_name=optimizer,
+        learning_rate=learning_rate,
+        b_init_name=b_init,
         n_epochs=FLAGS.epochs,
         epochs_between_checkpoints=FLAGS.epochs_between_checkpoints,
-        init_stddev=FLAGS.init_std,
+        init_stddev=init_std,
         cnn_stride=FLAGS.cnn_stride,
         reduce_learningrate=FLAGS.reduce_learningrate,
         verbosity=FLAGS.verbose,
