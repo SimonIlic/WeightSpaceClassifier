@@ -19,7 +19,7 @@ echo "=========================================="
 echo "N_MODELS=$N_MODELS, MAX_STEPS=$MAX_STEPS, LR=$LR"
 echo ""
 
-DATASETS="mnist fashion_mnist cifar10 svhn_cropped"
+DATASETS=${DATASETS:-"mnist fashion_mnist cifar10 svhn_cropped"}
 CONDITIONS="final-only multi-stage"
 SEEDS="42 123 456 789 1011"
 
