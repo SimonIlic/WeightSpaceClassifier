@@ -15,6 +15,9 @@ NUM_SEEDS=1000
 START_SEED=1
 END_SEED=$NUM_SEEDS
 SELECTED_DATASET=""
+AGGREGATE=false
+DELETE_CHECKPOINTS=false
+TENSORBOARD=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -34,18 +37,34 @@ while [[ $# -gt 0 ]]; do
             OUTPUT_BASE="$2"
             shift 2
             ;;
+        --aggregate)
+            AGGREGATE=true
+            shift
+            ;;
+        --delete-checkpoints)
+            DELETE_CHECKPOINTS=true
+            shift
+            ;;
+        --tensorboard)
+            TENSORBOARD=true
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --dataset DATASET    Train only on specified dataset (mnist, fashion_mnist, cifar10, svhn_cropped)"
-            echo "  --start-seed N       Start from seed N (default: 1)"
-            echo "  --end-seed N         End at seed N (default: 1000)"
-            echo "  --output-dir DIR     Output directory (default: ./output)"
-            echo "  -h, --help           Show this help message"
+            echo "  --dataset DATASET       Train only on specified dataset (mnist, fashion_mnist, cifar10, svhn_cropped)"
+            echo "  --start-seed N          Start from seed N (default: 1)"
+            echo "  --end-seed N            End at seed N (default: 1000)"
+            echo "  --output-dir DIR        Output directory (default: ./output)"
+            echo "  --aggregate             Run aggregation after training to create weights.npy and metrics.csv"
+            echo "  --delete-checkpoints    Delete .keras files after successful aggregation (requires --aggregate)"
+            echo "  --tensorboard           Enable TensorBoard logging for loss curves"
+            echo "  -h, --help              Show this help message"
             echo ""
             echo "Example:"
             echo "  $0 --dataset mnist --start-seed 1 --end-seed 100"
+            echo "  $0 --dataset mnist --aggregate --delete-checkpoints"
             exit 0
             ;;
         *)
@@ -70,6 +89,7 @@ echo ""
 # Create output directory
 mkdir -p "$OUTPUT_BASE"
 
+# actual training
 for dataset in "${DATASETS[@]}"; do
     echo "=========================================="
     echo "Dataset: $dataset"
@@ -89,12 +109,19 @@ for dataset in "${DATASETS[@]}"; do
 
         echo "[$dataset] Seed $seed: training..."
 
+        TB_FLAG=""
+        if [[ "$TENSORBOARD" == "true" ]]; then
+            TB_FLAG="--tensorboard"
+        fi
+
         python -m cnn_surgery.utils.train_network \
             --dataset "$dataset" \
             --config "$CONFIG_PATH" \
             --random_seed "$seed" \
             --workdir "$workdir" \
-            --verbose 0
+            --nosave_intermediate_checkpoints \
+            --verbose 0 \
+            $TB_FLAG
 
         echo "[$dataset] Seed $seed: done"
     done
@@ -104,3 +131,23 @@ for dataset in "${DATASETS[@]}"; do
 done
 
 echo "All training complete!"
+
+# Run aggregation if requested
+if [[ "$AGGREGATE" == "true" ]]; then
+    echo ""
+    echo "=========================================="
+    echo "Running aggregation..."
+    echo "=========================================="
+
+    AGGREGATE_ARGS="--output-dir $OUTPUT_BASE"
+    if [[ "$DELETE_CHECKPOINTS" == "true" ]]; then
+        AGGREGATE_ARGS="$AGGREGATE_ARGS --delete-checkpoints"
+    fi
+
+    for dataset in "${DATASETS[@]}"; do
+        echo "Aggregating $dataset..."
+        python "$SCRIPT_DIR/aggregate_results.py" --dataset "$dataset" $AGGREGATE_ARGS
+    done
+
+    echo "Aggregation complete!"
+fi
