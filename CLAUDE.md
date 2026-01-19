@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## General Conventions
 
+**Package Management**: Always use `uv` instead of `pip`. Use `uv pip install`, `uv add`, `uv sync`, etc.
+
 **File Paths**: Always use `~` to represent the home directory (`/Users/moos`) for conciseness and portability. This applies to:
 - File paths in code and documentation
 - Permissions in settings.json
@@ -25,6 +27,24 @@ Sometimes runs for this project are performed on a HPC cluster. Specifically on 
 - **Documentation**: https://servicedesk.surf.nl/wiki/spaces/WIKI/pages/30660184/Snellius
 - **Login nodes**: Access via SSH
 - **Job scheduler**: Slurm
+
+### Account & Budget
+
+- **Account**: `vusr98271`
+- **Budget**: 100,000 SBU (expires 2026-06-30)
+- **Check budget**: Run `accinfo`
+
+### Available Partitions
+
+| Partition | Access | Description |
+|-----------|--------|-------------|
+| `gpu_a100` | Yes | NVIDIA A100 GPUs |
+| `gpu_h100` | Yes | NVIDIA H100 GPUs |
+| `gpu_mig` | Yes | Multi-Instance GPU partitions |
+| `gpu_vis` | Yes | Visualization GPUs (1-day max) |
+| `cbuild` | Yes | Build/compile nodes |
+| `staging` | Yes | Data staging |
+| `rome`, `genoa` | No | CPU compute (not in budget) |
 
 ## Installation and Environment
 
