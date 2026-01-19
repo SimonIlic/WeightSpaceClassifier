@@ -1,0 +1,42 @@
+{
+  "mnist": {
+    "activation": "relu",
+    "optimizer": "adam",
+    "w_init": "he_normal",
+    "b_init": "zeros",
+    "init_std": 0.05,
+    "dropout": 0.05,
+    "learning_rate": 0.003,
+    "l2reg": 1e-6
+  },
+  "fashion_mnist": {
+    "activation": "relu",
+    "optimizer": "adam",
+    "w_init": "he_normal",
+    "b_init": "zeros",
+    "init_std": 0.05,
+    "dropout": 0.04,
+    "learning_rate": 0.004,
+    "l2reg": 1e-5
+  },
+  "cifar10": {
+    "activation": "relu",
+    "optimizer": "adam",
+    "w_init": "he_normal",
+    "b_init": "zeros",
+    "init_std": 0.05,
+    "dropout": 0.05,
+    "learning_rate": 0.005,
+    "l2reg": 1e-7
+  },
+  "svhn_cropped": {
+    "activation": "relu",
+    "optimizer": "adam",
+    "w_init": "he_normal",
+    "b_init": "zeros",
+    "init_std": 0.05,
+    "dropout": 0.07,
+    "learning_rate": 0.007,
+    "l2reg": 1e-7
+  }
+}
