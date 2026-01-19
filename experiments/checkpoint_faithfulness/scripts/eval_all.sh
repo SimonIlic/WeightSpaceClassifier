@@ -9,7 +9,10 @@
 
 cd "$(dirname "$0")/.."
 
-N_MODELS=${N_MODELS:-100}
+# Trap Ctrl+C and kill all child processes
+trap 'echo ""; echo "Interrupted. Killing all jobs..."; kill 0' INT TERM
+
+N_MODELS=${N_MODELS:-50}
 MAX_STEPS=${MAX_STEPS:-10000}
 LR=${LR:-0.1}
 

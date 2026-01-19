@@ -1,3 +1,23 @@
+"""
+Evaluate unlearning across multiple models from the CNN Zoo.
+
+This script applies the metanetwork-guided unlearning algorithm to models from
+the Small CNN Zoo dataset and compares against baseline methods.
+
+Workflow:
+    1. Load CNN weights from the model zoo (train or validation split)
+    2. Load the trained metanetwork for the target dataset
+    3. For each model:
+       a. Apply unlearning via gradient descent on metanetwork input
+       b. Compute baselines (random vector, finetune ascent)
+       c. Evaluate all methods on the test set
+    4. Save per-model results to CSV (appends incrementally)
+
+Usage:
+    python evaluate_models.py -c 3 -d mnist --meta-network-path meta_network_mnist.pkl
+    python evaluate_models.py -c 0 -d fashion_mnist -n 100 --lr 0.05
+"""
+
 import argparse
 import os
 import pickle
@@ -20,8 +40,9 @@ from cnn_surgery.unlearning import (  # fmt: skip
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
 from cnn_surgery.utils.load_dataset import load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
-from cnn_surgery.baselines import random_vector, finetune_ascent
-from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset
+from cnn_surgery.baselines import finetune_retain, random_vector, finetune_ascent
+from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset  # FUCKED
+from cnn_surgery.utils.benchmark_suite import js_similarity_score
 
 
 def build_loss_fn(name: str, boost_beta: float):
@@ -40,6 +61,8 @@ def build_stopping_criterium(name: str, args):
     stop_threshold = args.stop_threshold
     if name == "acc_pred":
         return acc_pred_stop_factory(stop_threshold)
+    elif name == "acc_pred_relative":
+        return acc_pred_stop_factory(stop_threshold, relative=True)
     elif name == "cosine_similarity":
         return cosine_similarity_stop_factory(derivative=False, eps=1 - stop_threshold)
     elif name == "cosine_similarity_diff":
@@ -76,37 +99,29 @@ def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate unlearning across multiple models.")
-    parser.add_argument(
-        "-n", "--n-models", type=int, default=None, help="Number of models to evaluate. If None, evaluate all models."
-    )
-    parser.add_argument("-c", "--target-class", type=int, help="Class index to unlearn.")
+    parser.add_argument("-n", "--n-models", type=int, default=None, help="Number of models to evaluate. If None, evaluate all models.")  # fmt: skip
+    parser.add_argument("-c", "--target-class", type=int, help="Class index to unlearn.")  # fmt: skip
     parser.add_argument("-d","--dataset", type=str, default="mnist", help="Dataset name.", choices=["mnist", "fashion_mnist", "cifar10", "svhn_cropped"])  # fmt: skip
     parser.add_argument("-o", "--output-file", type=str, default="evaluation_results.csv", help="CSV file where the evaluation rows are appended.")  # fmt: skip
-    parser.add_argument("--max-steps", type=int, default=10000, help="Max unlearning steps.")
-    parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")
-    parser.add_argument("--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium.")
-    parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")
-    parser.add_argument(
-        "--loss-fn", choices=["simple", "boost", "improve"], default="simple", help="Loss function used during unlearning."
-    )
+    parser.add_argument("--max-steps", type=int, default=2000, help="Max unlearning steps.")  # fmt: skip
+    parser.add_argument("--lr", type=float, default=0.1, help="Learning rate for unlearning.")  # fmt: skip
+    parser.add_argument("--stop-threshold", type=float, help="Threshold parameter passed to the stopping criterium.")  # fmt: skip
+    parser.add_argument("--l2-penalty", type=float, default=0.0, help="L2 regularisation strength.")  # fmt: skip
+    parser.add_argument("--loss-fn", choices=["simple", "boost", "improve"], default="simple", help="Loss function used during unlearning.")  # fmt: skip
     parser.add_argument("--boost-beta", type=float, default=0.1, help="Beta parameter for boost loss (only used when --loss-fn=boost).")  # fmt: skip
-    parser.add_argument("--stopping-criterium", choices=["acc_pred", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
+    parser.add_argument("--stopping-criterium", choices=["acc_pred", "acc_pred_relative", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
     parser.add_argument("--meta-network-path", type=str, help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
-    parser.add_argument(
-        "--weights-set",
-        type=str,
-        default="val",
-        choices=["train", "val"],
-        help="Which set of weights to use for unlearning (train or val).",
-    )
+    parser.add_argument("--weights-set", type=str, default="val", choices=["train", "val"], help="Which set of weights to use for unlearning (train or val).")  # fmt: skip
     return parser.parse_args()
 
+
 def evaluate_network(weights, activation, data, labels):
-        model = reconstruct_network(weights, activation)
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
-        return total_accuracy, accuracy_after
+    model = reconstruct_network(weights, activation)
+    model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+    total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
+    return total_accuracy, accuracy_after
+
 
 def main():
     args = parse_args()
@@ -124,6 +139,7 @@ def main():
     train_data, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
     weights_val, metrics_val, config_val = train_data if args.weights_set == "train" else val_data
     accuracies_val = metrics_val[:, -10:]
+    overall_accuracies_val = metrics_val[:, 0]  # test_accuracy column
     n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
 
     metanetwork = load_meta_network(
@@ -135,11 +151,11 @@ def main():
     # get dataset for baseline finetune ascent
     ft_dataset = get_tf_dataset(args.dataset, batchsize=512)
     ft_data_tr, data_te, dataset_info = ft_dataset
-    ft_data_tr = ft_data_tr.unbatch().filter(lambda x, y: y == args.target_class).batch(512)
 
     for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
         network = weights_val[model_idx]
         accuracy = accuracies_val[model_idx]
+        overall_accuracy_before = overall_accuracies_val[model_idx]
         config = config_val.iloc[model_idx]
 
         state = unlearn(
@@ -155,17 +171,25 @@ def main():
         edited_network = state.weights.squeeze(0).detach()
         # baselines
         rv_weights = random_vector(network, edited_network)
-        fa_weights = finetune_ascent(network, config, ft_data_tr, steps=state.step)
+        fa_weights = finetune_ascent(network, config, ft_data_tr, forget_class=args.target_class, steps=state.step, verbose=False)
+        fr_weights = finetune_retain(network, config, ft_data_tr, forget_class=args.target_class, steps=state.step, verbose=False)
 
-        acc_after_edit, per_class_acc_after_edit = evaluate_network(edited_network.numpy(), config["config.activation"], x_test, y_test)
+        acc_after_edit, per_class_acc_after_edit = evaluate_network(
+            edited_network.numpy(), config["config.activation"], x_test, y_test
+        )
         acc_after_rv, per_class_acc_after_rv = evaluate_network(rv_weights, config["config.activation"], x_test, y_test)
         acc_after_fa, per_class_acc_after_fa = evaluate_network(fa_weights, config["config.activation"], x_test, y_test)
+        acc_after_fr, per_class_acc_after_fr = evaluate_network(fr_weights, config["config.activation"], x_test, y_test)
 
+        js_similarity_edit_rv = js_similarity_score(edited_network.numpy(), rv_weights, config["config.activation"], x_test)
+        js_similarity_edit_fa = js_similarity_score(edited_network.numpy(), fa_weights, config["config.activation"], x_test)
+        js_similarity_edit_fr = js_similarity_score(edited_network.numpy(), fr_weights, config["config.activation"], x_test)
         row = pd.DataFrame(
             [
                 {
                     "model_idx": model_idx,
                     "original_accuracy": list(accuracy),
+                    "original_overall_accuracy": overall_accuracy_before,
                     "accuracy_after": per_class_acc_after_edit,
                     "overall_accuracy": acc_after_edit,
                     "target_class": args.target_class,
@@ -189,6 +213,11 @@ def main():
                     "overall_accuracy_rv": acc_after_rv,
                     "accuracy_after_fa": per_class_acc_after_fa,
                     "overall_accuracy_fa": acc_after_fa,
+                    "accuracy_after_fr": per_class_acc_after_fr,
+                    "overall_accuracy_fr": acc_after_fr,
+                    "js_similarity_edit_rv": js_similarity_edit_rv,
+                    "js_similarity_edit_fa": js_similarity_edit_fa,
+                    "js_similarity_edit_fr": js_similarity_edit_fr,
                 }
             ]
         )

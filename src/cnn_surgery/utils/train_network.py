@@ -35,9 +35,12 @@ import tensorflow_datasets as tfds
 from absl import app, flags, logging
 from tensorflow.io import gfile  # type: ignore
 
-# Configure TensorFlow for macOS compatibility
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
+# Note: Threading restrictions removed for better performance.
+# If you encounter fork safety issues on macOS, set these environment variables:
+#   OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES (already set above)
+# Or uncomment the lines below:
+# tf.config.threading.set_intra_op_parallelism_threads(1)
+# tf.config.threading.set_inter_op_parallelism_threads(1)
 
 FLAGS = flags.FLAGS
 CNN_KERNEL_SIZE = 3
@@ -45,10 +48,8 @@ CNN_KERNEL_SIZE = 3
 flags.DEFINE_integer("num_layers", 3, "Number of layers in the network.")
 flags.DEFINE_integer("num_units", 16, "Number of units in a dense layer.")
 flags.DEFINE_integer("batchsize", 512, "Size of the mini-batch.")
-flags.DEFINE_float(
-    "train_fraction", 1.0, "How much of the dataset to use fortraining [as fraction]: eg. 0.15, 0.5, 1.0"
-)
-flags.DEFINE_integer("epochs", 18, "How many epochs to train for")
+flags.DEFINE_float("train_fraction", 1.0, "How much of the dataset to use fortraining [as fraction]: eg. 0.15, 0.5, 1.0")
+flags.DEFINE_integer("epochs", 86, "How many epochs to train for")
 flags.DEFINE_integer("epochs_between_checkpoints", 6, "How many epochs to train between creating checkpoints")
 flags.DEFINE_integer("random_seed", 42, "Random seed.")
 flags.DEFINE_integer("cnn_stride", 2, "Stride of the CNN")
@@ -63,11 +64,10 @@ flags.DEFINE_string("b_init", "zero", "Initialization for biases.see tf.keras.in
 flags.DEFINE_boolean("grayscale", True, "Convert input images to grayscale.")
 flags.DEFINE_boolean("augment_traindata", False, "Augmenting Training data.")
 flags.DEFINE_boolean("reduce_learningrate", False, "Reduce LR towards end of training.")
+flags.DEFINE_boolean("save_intermediate_checkpoints", True, "Save checkpoints during training, not just the final one.")
 flags.DEFINE_string("dataset", "mnist", "Name of the dataset compatible with TFDS.")
 flags.DEFINE_string("dnn_architecture", "cnn", "Architecture of the DNN [fc, cnn, cnnbn]")
-flags.DEFINE_string(
-    "workdir", "/tmp/dnn_science_workdir", "Base working directory for storingcheckpoints, summaries, etc."
-)
+flags.DEFINE_string("workdir", "/tmp/dnn_science_workdir", "Base working directory for storingcheckpoints, summaries, etc.")
 flags.DEFINE_integer("verbose", 0, "Verbosity")
 flags.DEFINE_bool("use_tpu", False, "Whether running on TPU or not.")
 flags.DEFINE_string("master", "local", 'Name of the TensorFlow master to use. "local" for GPU.')
@@ -75,6 +75,13 @@ flags.DEFINE_string(
     "tpu_job_name", "tpu_worker", "Name of the TPU worker job. This is required when having multiple TPU worker jobs."
 )
 flags.DEFINE_integer("exclude_class", None, "Class (int) to exclude from training set.")
+flags.DEFINE_string(
+    "config",
+    None,
+    "Path to JSON config file with optimal hyperparameters. "
+    "Values from config override flag defaults for: activation, optimizer, w_init, b_init, init_std, dropout, learning_rate, l2reg.",
+)
+flags.DEFINE_boolean("tensorboard", False, "Enable TensorBoard logging.")
 
 
 def _get_workunit_params():
@@ -150,41 +157,44 @@ def get_dataset(
       tuple (training_dataset, test_dataset, info), where info is a dictionary
       with some relevant information about the dataset.
     """
-    data_tr, ds_info = tfds.load(dataset, split="train", with_info=True)
+    data_tr, ds_info = tfds.load(dataset, split="train", with_info=True)  # type: ignore
     effective_train_size = ds_info.splits["train"].num_examples
 
     if train_fraction < 1.0:
         effective_train_size = int(effective_train_size * train_fraction)
-        data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)
+        data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)  # type: ignore
         data_tr = data_tr.take(effective_train_size)
 
     # Filter out class
     if exclude_class is not None:
-        data_tr = data_tr.filter(lambda b: tf.not_equal(b["label"], exclude_class))
+        data_tr = data_tr.filter(lambda b: tf.not_equal(b["label"], exclude_class))  # type: ignore
 
-    fn_tr = lambda b: _preprocess_batch(b, normalize, to_grayscale, augment)
-    data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)
+    def fn_tr(b):
+        return _preprocess_batch(b, normalize, to_grayscale, augment)
+
+    data_tr = data_tr.shuffle(shuffle_buffer, seed=random_seed)  # type: ignore
     data_tr = data_tr.batch(batchsize, drop_remainder=True)
-    data_tr = data_tr.map(fn_tr, num_parallel_calls=1)
-    data_tr = data_tr.prefetch(1)
+    data_tr = data_tr.map(fn_tr, num_parallel_calls=tf.data.AUTOTUNE)
+    data_tr = data_tr.cache()  # Cache processed data in memory
+    data_tr = data_tr.prefetch(tf.data.AUTOTUNE)
 
-    fn_te = lambda b: _preprocess_batch(b, normalize, to_grayscale, False)
-    data_te = tfds.load(dataset, split="test")
-    data_te = data_te.batch(batchsize)
-    data_te = data_te.map(fn_te, num_parallel_calls=1)
-    data_te = data_te.prefetch(1)
+    def fn_te(b):
+        return _preprocess_batch(b, normalize, to_grayscale, False)
+
+    data_te = tfds.load(dataset, split="test")  # type: ignore
+    data_te = data_te.batch(batchsize)  # type: ignore
+    data_te = data_te.map(fn_te, num_parallel_calls=tf.data.AUTOTUNE)
+    data_te = data_te.prefetch(tf.data.AUTOTUNE)
 
     dataset_info = {
-        "num_classes": ds_info.features["label"].num_classes,
-        "data_shape": ds_info.features["image"].shape,
+        "num_classes": ds_info.features["label"].num_classes,  # type: ignore
+        "data_shape": ds_info.features["image"].shape,  # type: ignore
         "train_num_examples": effective_train_size,
     }
     return data_tr, data_te, dataset_info
 
 
-def build_cnn(
-    n_layers, n_hidden, n_outputs, dropout_rate, activation, stride, w_regularizer, w_init, b_init, use_batchnorm
-):
+def build_cnn(n_layers, n_hidden, n_outputs, dropout_rate, activation, stride, w_regularizer, w_init, b_init, use_batchnorm):
     """Convolutional deep neural network."""
     model = tf.keras.Sequential()
     for _ in range(n_layers):
@@ -205,9 +215,7 @@ def build_cnn(
             model.add(tf.keras.layers.BatchNormalization())
     model.add(tf.keras.layers.GlobalAveragePooling2D())
     model.add(
-        tf.keras.layers.Dense(
-            n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init
-        )
+        tf.keras.layers.Dense(n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init)
     )
     return model
 
@@ -231,14 +239,12 @@ def build_fcn(n_layers, n_hidden, n_outputs, dropout_rate, activation, w_regular
         if use_batchnorm:
             model.add(tf.keras.layers.BatchNormalization())
     model.add(
-        tf.keras.layers.Dense(
-            n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init
-        )
+        tf.keras.layers.Dense(n_outputs, kernel_regularizer=w_regularizer, kernel_initializer=w_init, bias_initializer=b_init)
     )
     return model
 
 
-def eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir):
+def eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir, save_checkpoint=True):
     """Runs Model Evaluation."""
     # get training set metrics in eval-mode (no dropout etc.)
     metrics_te = model.evaluate(data_te, verbose=0)
@@ -260,8 +266,9 @@ def eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir):
         info[k][cur_epoch] = float(metrics[k])
     metrics["epoch"] = cur_epoch  # so it's included in the logging output
     print(metrics)
-    savepath = os.path.join(workdir, "permanent_ckpt-%d.keras" % cur_epoch)
-    model.save(savepath)
+    if save_checkpoint:
+        savepath = os.path.join(workdir, "permanent_ckpt-%d.keras" % cur_epoch)
+        model.save(savepath)
 
 
 def run(
@@ -278,18 +285,20 @@ def run(
     b_init_name="zero",
     optimizer_name="sgd",
     learning_rate=0.01,
-    n_epochs=18,
+    n_epochs=86,
     epochs_between_checkpoints=6,
     init_stddev=0.05,
     cnn_stride=2,
     reduce_learningrate=False,
+    save_intermediate_checkpoints=True,
     verbosity=0,
+    tensorboard=False,
 ):
     """Runs the whole training procedure."""
-    data_tr, data_te, dataset_info = data
+    data_tr, data_te, dataset_info = data  # type: ignore
     n_outputs = dataset_info["num_classes"]
 
-    with strategy.scope():
+    with strategy.scope():  # type: ignore
         optimizer = tf.keras.optimizers.get(optimizer_name)
         optimizer.learning_rate = learning_rate
         w_init = tf.keras.initializers.get(w_init_name)
@@ -337,7 +346,7 @@ def run(
     if ckpt_manager.latest_checkpoint:
         logging.info("restoring checkpoint: %s", ckpt_manager.latest_checkpoint)
         print("restoring from %s" % ckpt_manager.latest_checkpoint)
-        with strategy.scope():
+        with strategy.scope():  # type: ignore
             ckpt.restore(ckpt_manager.latest_checkpoint)
         info = restore_results(os.path.join(workdir, ".intermediate-results.json"))
         print(info, flush=True)
@@ -355,6 +364,19 @@ def run(
         print("Model: %s" % model.name)
         print("Summary:", model.summary())
 
+    # Set up TensorBoard callback if enabled
+    callbacks = []
+    if tensorboard:
+        tb_logdir = os.path.join(workdir, "tensorboard")
+        tb_callback = tf.keras.callbacks.TensorBoard(
+            log_dir=tb_logdir,
+            histogram_freq=0,
+            write_graph=False,
+            update_freq="epoch",
+        )
+        callbacks.append(tb_callback)
+        logging.info("TensorBoard logging enabled: %s", tb_logdir)
+
     logger = None
     starting_epoch = len(info["train_loss"])
     cur_epoch = starting_epoch
@@ -366,12 +388,13 @@ def run(
 
         # Train until we reach the criterion or get NaNs
         try:
-            # always keep checkpoints for the first few epochs
             # we evaluate first and train afterwards so we have the at-init data
             if cur_epoch < 4 or (cur_epoch % epochs_between_checkpoints) == 0:
-                eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir)
+                eval_model(
+                    model, data_tr, data_te, info, logger, cur_epoch, workdir, save_checkpoint=save_intermediate_checkpoints
+                )
 
-            model.fit(data_tr, epochs=1, verbose=verbosity)
+            model.fit(data_tr, initial_epoch=cur_epoch, epochs=cur_epoch + 1, verbose=verbosity, callbacks=callbacks if callbacks else None)
             ckpt_manager.save()
             store_results(info, os.path.join(workdir, ".intermediate-results.json"))
 
@@ -393,11 +416,44 @@ def run(
     gfile.remove(os.path.join(workdir, ".intermediate-results.json"))
 
 
+def _load_config_for_dataset(config_path: str, dataset: str) -> dict:
+    """Load hyperparameters from JSON config file for a specific dataset."""
+    with gfile.GFile(config_path, "r") as f:
+        config = json.load(f)
+    if dataset not in config:
+        raise ValueError(f"Dataset '{dataset}' not found in config. Available: {list(config.keys())}")
+    return config[dataset]
+
+
 def main(unused_argv):
     workdir = FLAGS.workdir
 
     if not gfile.isdir(workdir):
         gfile.makedirs(workdir)
+
+    activation = FLAGS.activation
+    optimizer = FLAGS.optimizer
+    w_init = FLAGS.w_init
+    b_init = FLAGS.b_init
+    init_std = FLAGS.init_std
+    dropout = FLAGS.dropout
+    learning_rate = FLAGS.learning_rate
+    l2reg = FLAGS.l2reg
+    epochs = FLAGS.epochs
+
+    # Load hyperparameters from config file if provided
+    if FLAGS.config:
+        config = _load_config_for_dataset(FLAGS.config, FLAGS.dataset)
+        activation = config.get("activation", activation)
+        optimizer = config.get("optimizer", optimizer)
+        w_init = config.get("w_init", w_init)
+        b_init = config.get("b_init", b_init)
+        init_std = config.get("init_std", init_std)
+        dropout = config.get("dropout", dropout)
+        learning_rate = config.get("learning_rate", learning_rate)
+        l2reg = config.get("l2reg", l2reg)
+        epochs = config.get("epochs", epochs)
+        logging.info("Loaded config for %s: %s", FLAGS.dataset, config)
 
     tf.random.set_seed(FLAGS.random_seed)
     np.random.seed(FLAGS.random_seed)
@@ -443,19 +499,21 @@ def main(unused_argv):
         architecture=FLAGS.dnn_architecture,
         n_layers=FLAGS.num_layers,
         n_hiddens=FLAGS.num_units,
-        activation=FLAGS.activation,
-        dropout_rate=FLAGS.dropout,
-        l2_penalty=FLAGS.l2reg,
-        w_init_name=FLAGS.w_init,
-        b_init_name=FLAGS.b_init,
-        optimizer_name=FLAGS.optimizer,
-        learning_rate=FLAGS.learning_rate,
-        n_epochs=FLAGS.epochs,
+        activation=activation,
+        dropout_rate=dropout,
+        l2_penalty=l2reg,
+        w_init_name=w_init,
+        optimizer_name=optimizer,
+        learning_rate=learning_rate,
+        b_init_name=b_init,
+        n_epochs=epochs,
         epochs_between_checkpoints=FLAGS.epochs_between_checkpoints,
-        init_stddev=FLAGS.init_std,
+        init_stddev=init_std,
         cnn_stride=FLAGS.cnn_stride,
         reduce_learningrate=FLAGS.reduce_learningrate,
+        save_intermediate_checkpoints=FLAGS.save_intermediate_checkpoints,
         verbosity=FLAGS.verbose,
+        tensorboard=FLAGS.tensorboard,
     )
 
 

@@ -2,6 +2,7 @@
 # all functions take two iterables (any-type) and compute unlearning metric for the target class index
 
 from scipy.spatial.distance import jensenshannon
+import numpy as np
 
 
 def mean_difference(acc_before, acc_after, target_idx: int):
@@ -49,13 +50,30 @@ def min_difference(acc_before, acc_after, target_idx):
     delta_others = [acc_before[i] - acc_after[i] for i in range(len(acc_before)) if i != target_idx]
     return delta_target - min(delta_others)
 
-def target_difference(acc_before, acc_after, target_idx):
+def target_difference(acc_before, acc_after, target_idx, proportional=False):
     """
     Simple unlearned metric.
 
     Defined as the accuracy drop for the target class.
     """
-    return acc_before[target_idx] - acc_after[target_idx]
+    if proportional:
+        return (acc_before[target_idx] - acc_after[target_idx]) / acc_before[target_idx]
+    else:
+        return acc_before[target_idx] - acc_after[target_idx]
+    
+def avg_retain_accuracy(acc_before, acc_after, target_idx, proportional=False):
+    """
+    Average accuracy for non-target classes retained.
+    """
+    b = np.array(acc_before)
+    a = np.array(acc_after)
+
+    if proportional:
+        ratained = (b - a) / b
+    else:
+        ratained = b - a
+
+    return np.mean(ratained[np.arange(len(b)) != target_idx])
 
 def divergence_corrected_difference(acc_before, acc_after, target_idx):
     """
