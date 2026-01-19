@@ -118,7 +118,7 @@ The `notebooks/unlearning.ipynb` notebook contains up-to-date exploratory experi
 **Weight Ordering**: The weights in `weights.npy` must match the order expected by `reconstruct_network()`:
 - Storage order: `[bias, kernel, bias, kernel, ...]` (for each layer)
 - This differs from Keras `model.get_weights()` which returns `[kernel, bias, kernel, bias, ...]`
-- Conversion handled by `_flatten_weights_for_reconstruction()` in `process_models.py`
+- Conversion handled by `flatten_weights_for_reconstruction()` in `process_models.py`
 - See `tests/README_TESTS.md` for full explanation of this critical fix
 
 **Network Reconstruction**:

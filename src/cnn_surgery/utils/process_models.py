@@ -19,7 +19,7 @@ from cnn_surgery.utils.load_dataset import find_project_root
 
 
 # Thanks CLAUDE!
-def _flatten_weights_for_reconstruction(weights: List[np.ndarray]) -> np.ndarray:
+def flatten_weights_for_reconstruction(weights: List[np.ndarray]) -> np.ndarray:
     """
     Flatten model weights in the order expected by reconstruct_network.py.
 
@@ -94,7 +94,7 @@ def flatten_and_aggregate_model_weights(
             assert model is not None, f"Failed to load model from {checkpoint_path}"
 
             weights = model.get_weights()  # returns a list of numpy ndarrays
-            weights_flat = _flatten_weights_for_reconstruction(weights)
+            weights_flat = flatten_weights_for_reconstruction(weights)
 
             all_weights.append(weights_flat)
 

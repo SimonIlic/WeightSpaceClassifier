@@ -39,7 +39,7 @@ To save CNN weights as flattened numpy arrays:
 ```python
 from cnn_surgery.utils.process_models import (
     flatten_and_aggregate_model_weights,
-    _flatten_weights_for_reconstruction
+    flatten_weights_for_reconstruction
 )
 import numpy as np
 
@@ -51,8 +51,8 @@ weights_array = flatten_and_aggregate_model_weights(
 )
 
 # Single model: Flatten and save one model
-weights_flat = _flatten_weights_for_reconstruction(model.get_weights())
+weights_flat = flatten_weights_for_reconstruction(model.get_weights())
 np.save("single_model_weights.npy", weights_flat)
 ```
 
-**Note:** The `_flatten_weights_for_reconstruction()` function handles the weight reordering from Keras format `[kernel, bias, ...]` to the reconstruction format `[bias, kernel, ...]`.
+**Note:** The `flatten_weights_for_reconstruction()` function handles the weight reordering from Keras format `[kernel, bias, ...]` to the reconstruction format `[bias, kernel, ...]`.

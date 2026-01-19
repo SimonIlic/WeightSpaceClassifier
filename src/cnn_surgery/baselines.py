@@ -2,7 +2,7 @@ import keras
 from math import prod
 import numpy as np
 from cnn_surgery.utils.reconstruct_network import reconstruct_network, SHAPES
-from cnn_surgery.utils.process_models import _flatten_weights_for_reconstruction
+from cnn_surgery.utils.process_models import flatten_weights_for_reconstruction
 
 
 def finetune_ascent(weights, config, data, forget_class, steps, verbose=True):
@@ -42,7 +42,7 @@ def finetune_ascent(weights, config, data, forget_class, steps, verbose=True):
 
     # convert model back to raw weight vector
     model_weights = model.get_weights()
-    flat_weights = _flatten_weights_for_reconstruction(model_weights)
+    flat_weights = flatten_weights_for_reconstruction(model_weights)
     return flat_weights
 
 
@@ -89,7 +89,7 @@ def finetune_retain(weights, config, data, forget_class, epochs=5, steps=None, v
 
     # Convert model back to raw weight vector
     model_weights = model.get_weights()
-    flat_weights = _flatten_weights_for_reconstruction(model_weights)
+    flat_weights = flatten_weights_for_reconstruction(model_weights)
     return flat_weights
 
 

@@ -61,7 +61,7 @@ flags.DEFINE_string("b_init", "zero", "Initialization for biases.see tf.keras.in
 flags.DEFINE_boolean("grayscale", True, "Convert input images to grayscale.")
 flags.DEFINE_boolean("augment_traindata", False, "Augmenting Training data.")
 flags.DEFINE_boolean("reduce_learningrate", False, "Reduce LR towards end of training.")
-flags.DEFINE_boolean("save_intermediate_checkpoints", False, "Save checkpoints during training, not just the final one.")
+flags.DEFINE_boolean("save_intermediate_checkpoints", True, "Save checkpoints during training, not just the final one.")
 flags.DEFINE_string("dataset", "mnist", "Name of the dataset compatible with TFDS.")
 flags.DEFINE_string("dnn_architecture", "cnn", "Architecture of the DNN [fc, cnn, cnnbn]")
 flags.DEFINE_string("workdir", "/tmp/dnn_science_workdir", "Base working directory for storingcheckpoints, summaries, etc.")
@@ -285,7 +285,7 @@ def run(
     init_stddev=0.05,
     cnn_stride=2,
     reduce_learningrate=False,
-    save_intermediate_checkpoints=False,
+    save_intermediate_checkpoints=True,
     verbosity=0,
 ):
     """Runs the whole training procedure."""
