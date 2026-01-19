@@ -7,7 +7,8 @@
     "init_std": 0.05,
     "dropout": 0.05,
     "learning_rate": 0.003,
-    "l2reg": 1e-6
+    "l2reg": 1e-6,
+    "epochs": 86
   },
   "fashion_mnist": {
     "activation": "relu",
@@ -17,7 +18,8 @@
     "init_std": 0.05,
     "dropout": 0.04,
     "learning_rate": 0.004,
-    "l2reg": 1e-5
+    "l2reg": 1e-5,
+    "epochs": 86
   },
   "cifar10": {
     "activation": "relu",
@@ -27,7 +29,8 @@
     "init_std": 0.05,
     "dropout": 0.05,
     "learning_rate": 0.005,
-    "l2reg": 1e-7
+    "l2reg": 1e-7,
+    "epochs": 86
   },
   "svhn_cropped": {
     "activation": "relu",
@@ -37,6 +40,7 @@
     "init_std": 0.05,
     "dropout": 0.07,
     "learning_rate": 0.007,
-    "l2reg": 1e-7
+    "l2reg": 1e-7,
+    "epochs": 86
   }
 }
