@@ -61,6 +61,7 @@ flags.DEFINE_string("b_init", "zero", "Initialization for biases.see tf.keras.in
 flags.DEFINE_boolean("grayscale", True, "Convert input images to grayscale.")
 flags.DEFINE_boolean("augment_traindata", False, "Augmenting Training data.")
 flags.DEFINE_boolean("reduce_learningrate", False, "Reduce LR towards end of training.")
+flags.DEFINE_boolean("save_intermediate_checkpoints", False, "Save checkpoints during training, not just the final one.")
 flags.DEFINE_string("dataset", "mnist", "Name of the dataset compatible with TFDS.")
 flags.DEFINE_string("dnn_architecture", "cnn", "Architecture of the DNN [fc, cnn, cnnbn]")
 flags.DEFINE_string("workdir", "/tmp/dnn_science_workdir", "Base working directory for storingcheckpoints, summaries, etc.")
@@ -238,7 +239,7 @@ def build_fcn(n_layers, n_hidden, n_outputs, dropout_rate, activation, w_regular
     return model
 
 
-def eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir):
+def eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir, save_checkpoint=True):
     """Runs Model Evaluation."""
     # get training set metrics in eval-mode (no dropout etc.)
     metrics_te = model.evaluate(data_te, verbose=0)
@@ -260,8 +261,9 @@ def eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir):
         info[k][cur_epoch] = float(metrics[k])
     metrics["epoch"] = cur_epoch  # so it's included in the logging output
     print(metrics)
-    savepath = os.path.join(workdir, "permanent_ckpt-%d.keras" % cur_epoch)
-    model.save(savepath)
+    if save_checkpoint:
+        savepath = os.path.join(workdir, "permanent_ckpt-%d.keras" % cur_epoch)
+        model.save(savepath)
 
 
 def run(
@@ -283,6 +285,7 @@ def run(
     init_stddev=0.05,
     cnn_stride=2,
     reduce_learningrate=False,
+    save_intermediate_checkpoints=False,
     verbosity=0,
 ):
     """Runs the whole training procedure."""
@@ -366,10 +369,10 @@ def run(
 
         # Train until we reach the criterion or get NaNs
         try:
-            # always keep checkpoints for the first few epochs
             # we evaluate first and train afterwards so we have the at-init data
             if cur_epoch < 4 or (cur_epoch % epochs_between_checkpoints) == 0:
-                eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir)
+                eval_model(model, data_tr, data_te, info, logger, cur_epoch, workdir,
+                           save_checkpoint=save_intermediate_checkpoints)
 
             model.fit(data_tr, epochs=1, verbose=verbosity)
             ckpt_manager.save()
@@ -486,6 +489,7 @@ def main(unused_argv):
         init_stddev=init_std,
         cnn_stride=FLAGS.cnn_stride,
         reduce_learningrate=FLAGS.reduce_learningrate,
+        save_intermediate_checkpoints=FLAGS.save_intermediate_checkpoints,
         verbosity=FLAGS.verbose,
     )
 
