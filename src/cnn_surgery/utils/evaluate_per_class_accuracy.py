@@ -60,6 +60,11 @@ def evaluate_classifier(
     # per-class accuracy
     y_pred = np.argmax(model.predict(x_test, batch_size=batch_size, verbose=0), axis=1)
 
+    assert y_test.shape == y_pred.shape, (
+        f"y_test and y_pred don't have the same shape: y_test: \
+        {y_test.shape} != y_pred: {y_pred.shape}. proposed fix: flatten y_test in image dataloading"
+    )
+
     per_class_acc: list[float] = []
     for cls in range(num_classes):
         idx = (y_test == cls).flatten()
