@@ -117,10 +117,10 @@ def aggregate_dataset(
             # Get final epoch (highest epoch in test_accuracy dict)
             final_epoch = str(max(int(k) for k in results["test_accuracy"].keys()))
 
-            # Compile model for evaluation
+            # Compile model for evaluation (from_logits=True because CNN outputs logits)
             model.compile(
                 optimizer="adam",
-                loss="sparse_categorical_crossentropy",
+                loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                 metrics=["accuracy"],
             )
 
