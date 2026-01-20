@@ -8,5 +8,5 @@ python src/cnn_surgery/evaluate_models.py \
     --loss-fn='boost' \
     --stop-threshold=0.4 \
     --meta-network-path="metanetworks/meta_network_${dataset}_0.pkl" \
-    -o="${dataset}_class_evaluation_baselines_relative.csv"
+    -o="${dataset}_class_evaluation_baselines_relative_2.csv"
 done
