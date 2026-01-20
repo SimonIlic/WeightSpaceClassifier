@@ -22,6 +22,7 @@ import argparse
 import os
 import pickle
 
+import keras
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -181,9 +182,9 @@ def main():
         acc_after_fa, per_class_acc_after_fa = evaluate_network(fa_weights, config["config.activation"], x_test, y_test)
         acc_after_fr, per_class_acc_after_fr = evaluate_network(fr_weights, config["config.activation"], x_test, y_test)
 
-        js_similarity_edit_rv = js_similarity_score(edited_network.numpy(), rv_weights, config["config.activation"], x_test)
-        js_similarity_edit_fa = js_similarity_score(edited_network.numpy(), fa_weights, config["config.activation"], x_test)
-        js_similarity_edit_fr = js_similarity_score(edited_network.numpy(), fr_weights, config["config.activation"], x_test)
+        # js_similarity_edit_rv = js_similarity_score(edited_network.numpy(), rv_weights, config["config.activation"], x_test)
+        # js_similarity_edit_fa = js_similarity_score(edited_network.numpy(), fa_weights, config["config.activation"], x_test)
+        # js_similarity_edit_fr = js_similarity_score(edited_network.numpy(), fr_weights, config["config.activation"], x_test)
         row = pd.DataFrame(
             [
                 {
@@ -215,14 +216,17 @@ def main():
                     "overall_accuracy_fa": acc_after_fa,
                     "accuracy_after_fr": per_class_acc_after_fr,
                     "overall_accuracy_fr": acc_after_fr,
-                    "js_similarity_edit_rv": js_similarity_edit_rv,
-                    "js_similarity_edit_fa": js_similarity_edit_fa,
-                    "js_similarity_edit_fr": js_similarity_edit_fr,
+                    # "js_similarity_edit_rv": js_similarity_edit_rv,
+                    # "js_similarity_edit_fa": js_similarity_edit_fa,
+                    # "js_similarity_edit_fr": js_similarity_edit_fr,
                 }
             ]
         )
         # this is nice because even if the csv already exists, we can append new models to it
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
+
+        # Clear TensorFlow graph to prevent memory leak from accumulated Keras models
+        keras.backend.clear_session()
 
 
 if __name__ == "__main__":
