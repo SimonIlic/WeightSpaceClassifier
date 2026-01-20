@@ -96,7 +96,7 @@ def evaluate_model_from_weights(
 
 def load_testset_data(dataset: str):
     """
-    Load the test set data for the specified dataset.
+    Load the test set data (IMAGES, LABELS) for the specified dataset.
 
     Args:
         dataset (str): One of {'mnist', 'fashion_mnist', 'cifar10', 'svhn_cropped'}.

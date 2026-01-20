@@ -1,4 +1,5 @@
 """
+Evaluates CNNs on their own test set
 Evaluate unlearning across multiple models from the CNN Zoo.
 
 This script applies the metanetwork-guided unlearning algorithm to models from
@@ -27,6 +28,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+import numpy as np
 
 from cnn_surgery.lenses.regressor_lens import FCN, default_config
 from cnn_surgery.unlearning import (  # fmt: skip
@@ -117,7 +119,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def evaluate_network(weights, activation, data, labels):
+def evaluate_network(weights: np.ndarray, activation, data, labels):
+    """
+    Evaluate a CNN from the flat weights array
+    """
     model = reconstruct_network(weights, activation)
     model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
