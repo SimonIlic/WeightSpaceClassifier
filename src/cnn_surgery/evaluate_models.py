@@ -140,7 +140,7 @@ def parse_args():
     parser.add_argument("--stopping-criterium", choices=["acc_pred", "acc_pred_relative", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
     parser.add_argument("--meta-network-path", type=str, help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
-    parser.add_argument("--weights-set", type=str, default="val", choices=["train", "val", "test"], help="Which set of weights to use for unlearning (train or val).")  # fmt: skip
+    parser.add_argument("--weights-set", type=str, default="val", choices=["train", "val"], help="Which set of weights to use for unlearning (train or val).")  # fmt: skip
     return parser.parse_args()
 
 
