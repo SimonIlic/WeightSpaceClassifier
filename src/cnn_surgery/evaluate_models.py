@@ -204,6 +204,7 @@ def main():
     elif args.weights_set == "val":
         weights_val, metrics_val, config_val = val_data
     elif args.weights_set == "test":
+        print(f"Using test set for unlearning! This is not recommended for hyperparameter tuning.")
         weights_val, metrics_val, config_val = test_data
 
     accuracies_val = metrics_val[:, -10:]
@@ -230,6 +231,10 @@ def main():
     retain_data = ft_data_tr.unbatch().filter(lambda x, y: y != args.target_class).batch(512).cache().prefetch(tf.data.AUTOTUNE)
 
     for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
+        if model_idx >= len(weights_val):
+            print(f"Model index {model_idx} is out of range for weights_val. Stopping.")
+            break
+
         network = weights_val[model_idx]
         accuracy = accuracies_val[model_idx]
         overall_accuracy_before = overall_accuracies_val[model_idx]
