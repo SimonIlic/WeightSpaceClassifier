@@ -55,10 +55,13 @@ def evaluate_classifier(
         num_classes = int(np.max(y_test) + 1)
 
     # Single-pass inference for both overall and per-class accuracy
+    _, overall_acc1 = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=0)
     logits = model.predict(x_test, batch_size=batch_size, verbose=0)
     y_pred = np.argmax(logits, axis=1)
     y_test_flat = y_test.flatten()
     overall_acc = float(np.mean(y_pred == y_test_flat))
+
+    assert round(overall_acc1, 4) == round(overall_acc, 4), f"overall_acc1: {overall_acc1} != overall_acc: {overall_acc}"
 
     assert y_test_flat.shape == y_pred.shape, (
         f"y_test and y_pred don't have the same shape: y_test: \
