@@ -20,6 +20,7 @@ Usage:
 """
 
 import argparse
+import gc
 import os
 import pickle
 
@@ -31,15 +32,7 @@ from tqdm import tqdm
 import numpy as np
 
 from cnn_surgery.lenses.regressor_lens import FCN, default_config
-from cnn_surgery.unlearning import (  # fmt: skip
-    acc_pred_stop_factory,
-    boost_loss_factory,
-    cosine_similarity_stop_factory,
-    improve_loss,
-    simple_loss,
-    step_stop_factory,
-    unlearn,
-)
+from cnn_surgery.unlearning import acc_pred_stop_factory, boost_loss_factory, cosine_similarity_stop_factory, improve_loss, simple_loss, step_stop_factory, unlearn  # fmt: skip
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
 from cnn_surgery.utils.load_dataset import load_dataset
 from cnn_surgery.utils.reconstruct_network import reconstruct_network
@@ -126,6 +119,7 @@ def evaluate_network(weights: np.ndarray, activation, data, labels):
     model = reconstruct_network(weights, activation)
     model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
+    del model
     return total_accuracy, accuracy_after
 
 
@@ -237,7 +231,8 @@ def main():
         # this is nice because even if the csv already exists, we can append new models to it
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
 
-        # Clear TensorFlow graph to prevent memory leak from accumulated Keras models
+        # Clear Python references first, then TensorFlow graph to prevent memory leak
+        gc.collect()
         keras.backend.clear_session()
 
 

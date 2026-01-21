@@ -101,9 +101,9 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         loss = loss_fn(acc_pred, target_class) + l2_penalty * l2_regularisation(weights)
         loss.backward()
         # update stats
-        grads.append(weights.grad.detach().clone())
+        grads.append(weights.grad.detach().clone())  # type: ignore
         state = UnlearnState(step=step,
-                             weights=None,  #NOTE: skipping weight storage for increased efficiency (can be added back if needed)
+                             weights=None, # type: ignore #NOTE: skipping weight storage for increased efficiency (can be added back if needed)
                              pred=acc_pred.detach().clone(),
                              loss=loss.item(), 
                              grads=grads, 
@@ -117,7 +117,7 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         with th.no_grad():
             weights -= lr * weights.grad  # type: ignore
             distance_travelled += th.norm(lr * weights.grad).item()  # type: ignore
-        weights.grad.zero_()
+        weights.grad.zero_()  # type: ignore
         meta_network.zero_grad()
 
     state = UnlearnState(
