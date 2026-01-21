@@ -22,6 +22,7 @@ Usage:
 import argparse
 import os
 import pickle
+import gc
 
 import keras
 import pandas as pd
@@ -150,6 +151,7 @@ def evaluate_network(weights: np.ndarray, activation, data, labels):
     model = reconstruct_network(weights, activation)
     model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
+    del model
     return total_accuracy, accuracy_after
 
 
@@ -237,12 +239,8 @@ def main():
         edited_network = state.weights.squeeze(0).detach()
         # baselines (using pre-filtered datasets for efficiency)
         rv_weights = random_vector(network, edited_network)
-        fa_weights = finetune_ascent(
-            network, config, forget_data, forget_class=args.target_class, steps=state.step, verbose=False, prefiltered=True
-        )
-        fr_weights = finetune_retain(
-            network, config, retain_data, forget_class=args.target_class, steps=state.step, verbose=False, prefiltered=True
-        )
+        fa_weights = finetune_ascent(network, config, forget_data, steps=state.step, verbose=False)
+        fr_weights = finetune_retain(network, config, retain_data, steps=state.step, verbose=False)
 
         # Batch evaluate all weight sets with single model build/compile
         eval_results = evaluate_networks_batch(
@@ -300,6 +298,7 @@ def main():
         # Clear TensorFlow graph periodically to prevent memory leak (every 10 iterations)
         if model_idx % 10 == 0:
             keras.backend.clear_session()
+            gc.collect()
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from cnn_surgery.utils.reconstruct_network import reconstruct_network, SHAPES
 from cnn_surgery.utils.process_models import flatten_weights_for_reconstruction
 
 
-def finetune_ascent(weights, config, data, forget_class, steps, verbose=True, prefiltered=False):
+def finetune_ascent(weights, config, forget_data, steps, verbose=True):
     """Baseline finetuning using gradient ascent on the forget task.
 
     As in Ilharco et al., Golatkar et al., Tarun et al.
@@ -13,17 +13,13 @@ def finetune_ascent(weights, config, data, forget_class, steps, verbose=True, pr
     Args:
         weights: Flattened CNN weights (numpy array, shape 4970)
         config: Pandas Series with keys like config.activation, config.optimizer, etc.
-        data: TensorFlow dataset (unfiltered - filtering happens inside, unless prefiltered=True)
-        forget_class: Class to forget (int). Data will be filtered to ONLY this class.
+        forget_data: TensorFlow dataset filtered to only the forget class
         steps: Number of gradient ascent steps
         verbose: Whether to print training progress
-        prefiltered: If True, skip filtering (data is already filtered to forget class)
 
     Returns:
         Flattened weights after gradient ascent on forget class
     """
-    # Filter to only forget class (skip if data is already pre-filtered)
-    forget_data = data if prefiltered else data.unbatch().filter(lambda x, y: y == forget_class).batch(512)
 
     model = reconstruct_network(
         weights, activation=config["config.activation"], l2_penalty=config["config.l2reg"], dropout_rate=config["config.dropout"]
@@ -47,7 +43,7 @@ def finetune_ascent(weights, config, data, forget_class, steps, verbose=True, pr
     return flat_weights
 
 
-def finetune_retain(weights, config, data, forget_class, epochs=5, steps=None, verbose=True, prefiltered=False) -> np.ndarray:  # type: ignore
+def finetune_retain(weights, config, retain_data, epochs=5, steps=None, verbose=True) -> np.ndarray:  # type: ignore
     """Baseline finetuning on the retain set (standard supervised learning).
 
     As described in Golatkar et al. (2020) & Foster et al. (2024): Selective Synaptic Dampening (2024).
@@ -56,19 +52,14 @@ def finetune_retain(weights, config, data, forget_class, epochs=5, steps=None, v
     Args:
         weights: Flattened CNN weights (numpy array, shape 4970)
         config: Pandas Series with keys like config.activation, config.optimizer, etc.
-        data: TensorFlow dataset (unfiltered - filtering happens inside, unless prefiltered=True)
-        forget_class: Class to forget (int). Data will be filtered to EXCLUDE this class.
+        retain_data: TensorFlow dataset filtered to only the retain class
         epochs: Number of finetuning epochs (default: 5, per SSD paper)
         steps: If provided, train for this many steps instead of epochs
         verbose: Whether to print training progress
-        prefiltered: If True, skip filtering (data is already filtered to retain set)
 
     Returns:
         Flattened weights after finetuning
     """
-    # Filter out forget class to create retain set (skip if data is already pre-filtered)
-    retain_data = data if prefiltered else data.unbatch().filter(lambda x, y: y != forget_class).batch(512)
-
     model = reconstruct_network(
         weights, activation=config["config.activation"], l2_penalty=config["config.l2reg"], dropout_rate=config["config.dropout"]
     )
@@ -113,6 +104,7 @@ def random_vector(original_weights, edit_weights):
 
 if __name__ == "__main__":
     from cnn_surgery.utils.train_network import get_dataset
+    import tensorflow as tf
 
     # NOTE: Unterthiner does not mention batch size, using default from their codebase
     dataset = get_dataset("mnist", batchsize=512)
@@ -129,10 +121,13 @@ if __name__ == "__main__":
         "config.dropout": 0.0,
     }
 
+    forget_data = data_tr.unbatch().filter(lambda x, y: y == 7).batch(512).cache().prefetch(tf.data.AUTOTUNE)
+    retain_data = data_tr.unbatch().filter(lambda x, y: y != 7).batch(512).cache().prefetch(tf.data.AUTOTUNE)
+
     # Gradient ascent on forget class (class 7)
-    ft = finetune_ascent(example_weights, config=example_config, data=data_tr, forget_class=7, steps=100)
+    ft = finetune_ascent(example_weights, config=example_config, forget_data=forget_data, steps=100)
 
     # Finetune on retain set (all except class 7)
-    fr = finetune_retain(example_weights, config=example_config, data=data_tr, forget_class=7, epochs=5)
+    fr = finetune_retain(example_weights, config=example_config, retain_data=retain_data, epochs=5)
 
     rd = random_vector(example_weights, example_weights + 0.01)
