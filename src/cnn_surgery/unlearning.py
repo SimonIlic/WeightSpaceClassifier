@@ -8,11 +8,9 @@ def torch_cosine_similarity(a: th.Tensor, b: th.Tensor) -> float:
     """Compute cosine similarity between two tensors using PyTorch (faster than sklearn)."""
     return th.nn.functional.cosine_similarity(a.flatten().unsqueeze(0), b.flatten().unsqueeze(0)).item()
 
-
 @dataclass
 class UnlearnState:
     """Defines a state during unlearning process. Contains anything useful for stopping criterium or logging and metrics."""
-
     step: int
     target_class: int
     weights: th.Tensor
@@ -22,55 +20,42 @@ class UnlearnState:
     distance_travelled: float
     init_pred: th.Tensor
 
-
 def boost_loss_factory(beta=0.1):
     """Return a boost_loss(pred, target_class) function with given beta."""
-
     def boost_loss(pred, target_class):
         """Encourages unlearning of a specific class, whilst boosting accuracy on other classes."""
         weighting = -th.ones_like(pred) * beta  # all classes go up
         weighting[target_class] = 1  # target class goes down
         return (weighting * pred).sum()
-
     return boost_loss
-
 
 # default boost_loss kept for backward compatibility
 boost_loss = boost_loss_factory()
 
-
 def simple_loss(pred, target_class):
-    """Simple loss to reduce accuracy on target class."""
+    """ Simple loss to reduce accuracy on target class."""
     return pred[target_class]
 
-
 def improve_loss(pred, target_class):
-    """Simple loss to improve accuracy on target class."""
+    """ Simple loss to improve accuracy on target class."""
     return -pred[target_class]
 
-
 def l2_regularisation(weights):
-    """L2 regularization on model weights."""
-    return th.sum(weights**2)
-
+    """ L2 regularization on model weights."""
+    return th.sum(weights ** 2)
 
 def acc_pred_stop_factory(threshold=0.1, relative=False):
     """Return a stopping function that checks predicted accuracy for target class below threshold."""
     if relative:
-
         def acc_pred_stop(state: UnlearnState):
             return state.pred[state.target_class] < state.init_pred[state.target_class] * threshold
     else:
-
         def acc_pred_stop(state: UnlearnState):
             return state.pred[state.target_class] < threshold
-
     return acc_pred_stop
-
 
 # backward-compatible default
 acc_pred_stop = acc_pred_stop_factory()
-
 
 def cosine_similarity_stop_factory(derivative=False, eps=1e-2):
     def cosine_similarity_stop(state: UnlearnState):
@@ -79,30 +64,16 @@ def cosine_similarity_stop_factory(derivative=False, eps=1e-2):
             return False
         # Use PyTorch cosine similarity (faster than sklearn)
         return torch_cosine_similarity(grads[-1], grads[-2 if derivative else 0]) < 1 - eps
-
     return cosine_similarity_stop
-
 
 def step_stop_factory(max_steps=100):
     def step_stop(state: UnlearnState):
         return state.step >= max_steps
-
     return step_stop
 
-
-def unlearn(
-    model_weights,
-    meta_network: th.nn.Module,
-    target_class,
-    max_steps=100,
-    lr=0.01,
-    loss_fn=boost_loss,
-    stopping_criterium=acc_pred_stop,
-    l2_penalty=1e-6,
-    step_callback=None,
-    device=None,
-    store_grads=None,
-):
+def unlearn(model_weights, meta_network: th.nn.Module, target_class,
+            max_steps=100, lr=0.01, loss_fn=boost_loss, stopping_criterium=acc_pred_stop, l2_penalty=1e-6,
+            step_callback=None, device=None, store_grads=None):
     """
     Unlearn a target class from the model using a meta-network to guide weight updates.
 
@@ -155,18 +126,17 @@ def unlearn(
         loss.backward()
         # update gradient history (only if needed for cosine_similarity stopping)
         if store_grads:
+            # just keep all grads
             grads.append(weights.grad.detach().clone())  # type: ignore
 
-        state = UnlearnState(
-            step=step,
-            weights=weights.detach().clone(),
-            pred=acc_pred.detach().clone(),
-            loss=loss.item(),
-            grads=grads,
-            target_class=target_class,
-            distance_travelled=distance_travelled,
-            init_pred=initial_prediction,
-        )
+        state = UnlearnState(step=step,
+                             weights=weights.detach().clone(),
+                             pred=acc_pred.detach().clone(),
+                             loss=loss.item(), 
+                             grads=grads, 
+                             target_class=target_class,
+                             distance_travelled=distance_travelled,
+                             init_pred=initial_prediction)
         # stop if stopping criterium is met
         if stopping_criterium(state):
             break
@@ -186,15 +156,13 @@ def unlearn(
         loss=loss.item(),
         grads=grads,  # Keep on device (not typically used after unlearn)
         distance_travelled=distance_travelled,
-        init_pred=initial_prediction.cpu(),
+        init_pred=initial_prediction.cpu()
     )
 
     return state
 
-
 if __name__ == "__main__":
     import pickle
-
-    network = pickle.load(open("network_weights.pkl", "rb"))
-    meta_network = pickle.load(open("meta_network.pkl", "rb"))
+    network = pickle.load(open('network_weights.pkl', 'rb'))
+    meta_network = pickle.load(open('meta_network.pkl', 'rb'))
     edited_network = unlearn(network, meta_network, target_class=3)
