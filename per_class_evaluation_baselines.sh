@@ -1,11 +1,13 @@
 dataset='fashion_mnist'
+group_size=500
 for cls in 0 1 2 3 4 5 6 7 8 9; do 
-    for idx in $(seq 0 500 7500); do
+    for idx in $(seq 0 $group_size 7500); do
+        echo "Evaluating class $cls, until index $idx"
         python src/cnn_surgery/evaluate_models.py \
             -c=$cls \
             -d=$dataset \
             --start-idx=$idx \
-            -n=100 \
+            -n=$group_size \
             --weights-set='test' \
             --stopping-criterium='acc_pred_relative' \
             --max-steps=2000 \
