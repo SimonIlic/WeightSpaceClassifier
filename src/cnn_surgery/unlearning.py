@@ -1,8 +1,12 @@
 # unlearning algorithm as proposed in "Amazing Paper Title" by Moos & Simon 2026"
 import torch as th
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 from dataclasses import dataclass
+
+
+def torch_cosine_similarity(a: th.Tensor, b: th.Tensor) -> float:
+    """Compute cosine similarity between two tensors using PyTorch (faster than sklearn)."""
+    return th.nn.functional.cosine_similarity(a.flatten().unsqueeze(0), b.flatten().unsqueeze(0)).item()
 
 @dataclass
 class UnlearnState:
@@ -58,7 +62,8 @@ def cosine_similarity_stop_factory(derivative=False, eps=1e-2):
         grads = state.grads
         if len(grads) < 2:
             return False
-        return cosine_similarity([grads[-1]], [grads[-2 if derivative else 0]]) < 1 - eps
+        # Use PyTorch cosine similarity (faster than sklearn)
+        return torch_cosine_similarity(grads[-1], grads[-2 if derivative else 0]) < 1 - eps
     return cosine_similarity_stop
 
 def step_stop_factory(max_steps=100):
@@ -68,7 +73,7 @@ def step_stop_factory(max_steps=100):
 
 def unlearn(model_weights, meta_network: th.nn.Module, target_class,
             max_steps=100, lr=0.01, loss_fn=boost_loss, stopping_criterium=acc_pred_stop, l2_penalty=1e-6,
-            step_callback=None):
+            step_callback=None, device=None, store_grads=None):
     """
     Unlearn a target class from the model using a meta-network to guide weight updates.
 
@@ -80,11 +85,30 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
     - lr: Learning rate (step-size) for weight updates.
     - l2_penalty: L2 regularization penalty.
     - step_callback: Optional callable(step, pred, weights) called at each step for tracking.
+    - device: Device to run on ('cpu', 'cuda', 'mps'). Auto-detected if None.
+    - store_grads: Whether to store gradient history. If None, auto-detect based on stopping_criterium.
 
     Returns:
     - Updated model weights after unlearning. (as tensor), metrics
     """
-    weights = th.tensor(model_weights, requires_grad=True)
+    # Auto-detect device
+    if device is None:
+        if th.backends.mps.is_available():
+            device = "mps"
+        elif th.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
+
+    # Auto-detect whether we need gradient history (for cosine_similarity stopping)
+    if store_grads is None:
+        # Check if stopping criterium needs gradients by inspecting its name
+        store_grads = "cosine_similarity" in str(stopping_criterium)
+
+    # Move tensors and model to device
+    weights = th.tensor(model_weights, requires_grad=True, device=device)
+    meta_network = meta_network.to(device)
+
     grads = []
     distance_travelled = 0.0
     initial_prediction = meta_network(weights.unsqueeze(0)).squeeze(0).detach().clone()
@@ -100,8 +124,12 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         # compute loss to unlearn target class
         loss = loss_fn(acc_pred, target_class) + l2_penalty * l2_regularisation(weights)
         loss.backward()
-        # update stats
-        grads.append(weights.grad.detach().clone())
+        # update gradient history (only if needed for cosine_similarity stopping)
+        if store_grads:
+            # Keep only last 2 gradients to save memory (sufficient for cosine comparison)
+            if len(grads) >= 2:
+                grads = grads[-1:]
+            grads.append(weights.grad.detach().clone())
         state = UnlearnState(step=step,
                              weights=None,  #NOTE: skipping weight storage for increased efficiency (can be added back if needed)
                              pred=acc_pred.detach().clone(),
@@ -120,15 +148,16 @@ def unlearn(model_weights, meta_network: th.nn.Module, target_class,
         weights.grad.zero_()
         meta_network.zero_grad()
 
+    # Move final results back to CPU for numpy compatibility
     state = UnlearnState(
         step=step,
         target_class=target_class,
-        weights=weights.detach().clone(),
-        pred=acc_pred.detach().clone(),
+        weights=weights.detach().cpu().clone(),
+        pred=acc_pred.detach().cpu().clone(),
         loss=loss.item(),
-        grads=grads,
+        grads=grads,  # Keep on device (not typically used after unlearn)
         distance_travelled=distance_travelled,
-        init_pred=initial_prediction
+        init_pred=initial_prediction.cpu()
     )
 
     return state
