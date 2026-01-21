@@ -225,6 +225,7 @@ def main():
     ft_data_tr, _, _ = ft_dataset
 
     # Pre-filter and cache datasets for baselines (avoids repeated unbatch/filter/batch per iteration)
+    # .prefetch() overlaps data loading with training; modest benefit here since .cache() already stores data in memory
     forget_data = ft_data_tr.unbatch().filter(lambda x, y: y == args.target_class).batch(512).cache().prefetch(tf.data.AUTOTUNE)
     retain_data = ft_data_tr.unbatch().filter(lambda x, y: y != args.target_class).batch(512).cache().prefetch(tf.data.AUTOTUNE)
 
@@ -264,7 +265,7 @@ def main():
 
         # js_similarity_edit_rv = js_similarity_score(edited_network.numpy(), rv_weights, config["config.activation"], x_test)
         # js_similarity_edit_fa = js_similarity_score(edited_network.numpy(), fa_weights, config["config.activation"], x_test)
-        # js_similarity_edit_fr = js_similarity_score(edited_network.numpy(), fr_weights, config["config.activation"], x_test)
+        js_similarity_edit_fr = js_similarity_score(edited_network.numpy(), fr_weights, config["config.activation"], x_test)
 
         row = pd.DataFrame(
             [
@@ -299,7 +300,7 @@ def main():
                     "overall_accuracy_fr": acc_after_fr,
                     # "js_similarity_edit_rv": js_similarity_edit_rv,
                     # "js_similarity_edit_fa": js_similarity_edit_fa,
-                    # "js_similarity_edit_fr": js_similarity_edit_fr,
+                    "js_similarity_edit_fr": js_similarity_edit_fr,
                 }
             ]
         )
