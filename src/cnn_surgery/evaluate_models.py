@@ -225,6 +225,7 @@ def main():
         overall_accuracy_before = overall_accuracies_val[model_idx]
         config = config_val.iloc[model_idx]
 
+        # UNLEARNING HAPPENS HERE
         state = unlearn(
             network,
             metanetwork,
@@ -236,6 +237,7 @@ def main():
             stopping_criterium=stopping_criterium,
             device=device,
         )
+
         edited_network = state.weights.squeeze(0).detach()
         # baselines (using pre-filtered datasets for efficiency)
         rv_weights = random_vector(network, edited_network)
@@ -295,10 +297,12 @@ def main():
         # this is nice because even if the csv already exists, we can append new models to it
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
 
+        # CLEAN UP
+        del state
+        gc.collect()
         # Clear TensorFlow graph periodically to prevent memory leak (every 10 iterations)
         if model_idx % 10 == 0:
             keras.backend.clear_session()
-            gc.collect()
 
 
 if __name__ == "__main__":
