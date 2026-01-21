@@ -34,3 +34,6 @@ line-length = 130
 
 [tool.ruff.lint]
 unfixable = ["F401"] # never auto-remove imports
+
+[tool.ruff.format]
+exclude = ["src/cnn_surgery/unlearning.py"]
