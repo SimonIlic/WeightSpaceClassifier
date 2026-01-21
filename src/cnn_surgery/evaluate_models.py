@@ -95,13 +95,11 @@ def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int, de
         meta_network_path: Path to the meta-network file
         input_dim: Input dimension for the network
         n_outputs: Number of output classes
-        device: Device to load the model to. If None, auto-detect.
+        device: Device to load the model to
 
     Returns:
-        Tuple of (metanetwork, device)
+        Tuple of (metanetwork)
     """
-    if device is None:
-        device = get_device()
 
     if meta_network_path.endswith(".pt"):
         metanetwork = FCN(
@@ -122,7 +120,7 @@ def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int, de
 
     metanetwork = metanetwork.to(device)
     metanetwork.eval()
-    return metanetwork, device
+    return metanetwork
 
 
 def parse_args():
@@ -205,10 +203,14 @@ def main():
     overall_accuracies_val = metrics_val[:, 0]  # test_accuracy column
     n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
 
-    metanetwork, device = load_meta_network(
+    # device = get_device()
+    device = "cpu"
+
+    metanetwork = load_meta_network(
         meta_network_path,
         input_dim=weights_val.shape[1],
         n_outputs=accuracies_val.shape[1],
+        device=device,
     )
 
     # get dataset for baseline finetune ascent
@@ -239,7 +241,7 @@ def main():
         )
 
         edited_network = state.weights.squeeze(0).detach()
-        # baselines (using pre-filtered datasets for efficiency)
+        # baselines
         rv_weights = random_vector(network, edited_network)
         fa_weights = finetune_ascent(network, config, forget_data, steps=state.step, verbose=False)
         fr_weights = finetune_retain(network, config, retain_data, steps=state.step, verbose=False)
@@ -300,7 +302,6 @@ def main():
         # CLEAN UP
         del state
         gc.collect()
-        # Clear TensorFlow graph periodically to prevent memory leak (every 10 iterations)
         if model_idx % 10 == 0:
             keras.backend.clear_session()
 
