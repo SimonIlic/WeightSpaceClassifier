@@ -22,9 +22,11 @@ Usage:
 import argparse
 import os
 import pickle
+import gc
 
 import keras
 import pandas as pd
+import tensorflow as tf
 import torch
 import torch.nn as nn
 from tqdm import tqdm
@@ -42,7 +44,7 @@ from cnn_surgery.unlearning import (  # fmt: skip
 )
 from cnn_surgery.utils.evaluate_per_class_accuracy import evaluate_classifier, load_testset_data
 from cnn_surgery.utils.load_dataset import load_dataset
-from cnn_surgery.utils.reconstruct_network import reconstruct_network
+from cnn_surgery.utils.reconstruct_network import reconstruct_network, reshape_weights, SHAPES
 from cnn_surgery.baselines import finetune_retain, random_vector, finetune_ascent
 from cnn_surgery.utils.train_network import get_dataset as get_tf_dataset  # FUCKED
 from cnn_surgery.utils.benchmark_suite import js_similarity_score
@@ -77,8 +79,28 @@ def build_stopping_criterium(name: str, args):
     raise ValueError(f"Unsupported stopping criterium: {name}")
 
 
-def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int):
-    """Load a meta-network from a state dict (.pt) or pickle (.pkl) file."""
+def get_device():
+    """Auto-detect the best available device for PyTorch."""
+    if torch.backends.mps.is_available():
+        return "mps"
+    elif torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
+def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int, device: str | None = None):
+    """Load a meta-network from a state dict (.pt) or pickle (.pkl) file.
+
+    Args:
+        meta_network_path: Path to the meta-network file
+        input_dim: Input dimension for the network
+        n_outputs: Number of output classes
+        device: Device to load the model to
+
+    Returns:
+        Tuple of (metanetwork)
+    """
+
     if meta_network_path.endswith(".pt"):
         metanetwork = FCN(
             input_dim=input_dim,
@@ -89,13 +111,14 @@ def load_meta_network(meta_network_path: str, input_dim: int, n_outputs: int):
             activation=nn.ReLU,
             last_activation="sigmoid",
         )
-        metanetwork.load_state_dict(torch.load(meta_network_path, map_location="cpu"))
+        metanetwork.load_state_dict(torch.load(meta_network_path, map_location=device))
     elif meta_network_path.endswith(".pkl"):
         with open(meta_network_path, "rb") as meta_file:
             metanetwork = pickle.load(meta_file)
     else:
         raise ValueError(f"Unsupported pickle type: {meta_network_path.split('.')[-1]}")
 
+    metanetwork = metanetwork.to(device)
     metanetwork.eval()
     return metanetwork
 
@@ -126,7 +149,39 @@ def evaluate_network(weights: np.ndarray, activation, data, labels):
     model = reconstruct_network(weights, activation)
     model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     total_accuracy, accuracy_after = evaluate_classifier(model, data, labels)
+    del model
     return total_accuracy, accuracy_after
+
+
+def evaluate_networks_batch(weight_list: list, activation: str, x_test: np.ndarray, y_test: np.ndarray):
+    """
+    Evaluate multiple weight sets with a single model build/compile.
+
+    This is more efficient than calling evaluate_network multiple times because
+    the model architecture is only built and compiled once.
+
+    Args:
+        weight_list: List of flat weight arrays (each shape 4970)
+        activation: Activation function name
+        x_test: Test images
+        y_test: Test labels
+
+    Returns:
+        List of (overall_acc, per_class_acc) tuples
+    """
+    # Build and compile model once
+    model = reconstruct_network(weight_list[0], activation)
+    model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+
+    results = []
+    for weights in weight_list:
+        # Just set new weights without rebuilding
+        reshaped = reshape_weights(weights, SHAPES)
+        model.set_weights(reshaped)
+        overall_acc, per_class_acc = evaluate_classifier(model, x_test, y_test)
+        results.append((overall_acc, per_class_acc))
+
+    return results
 
 
 def main():
@@ -155,15 +210,23 @@ def main():
     overall_accuracies_val = metrics_val[:, 0]  # test_accuracy column
     n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
 
+    # device = get_device()
+    device = "cpu"
+
     metanetwork = load_meta_network(
         meta_network_path,
         input_dim=weights_val.shape[1],
         n_outputs=accuracies_val.shape[1],
+        device=device,
     )
 
     # get dataset for baseline finetune ascent
     ft_dataset = get_tf_dataset(args.dataset, batchsize=512)
-    ft_data_tr, data_te, dataset_info = ft_dataset
+    ft_data_tr, _, _ = ft_dataset
+
+    # Pre-filter and cache datasets for baselines (avoids repeated unbatch/filter/batch per iteration)
+    forget_data = ft_data_tr.unbatch().filter(lambda x, y: y == args.target_class).batch(512).cache().prefetch(tf.data.AUTOTUNE)
+    retain_data = ft_data_tr.unbatch().filter(lambda x, y: y != args.target_class).batch(512).cache().prefetch(tf.data.AUTOTUNE)
 
     for model_idx in tqdm(range(args.start_idx, args.start_idx + n_models)):
         network = weights_val[model_idx]
@@ -171,6 +234,7 @@ def main():
         overall_accuracy_before = overall_accuracies_val[model_idx]
         config = config_val.iloc[model_idx]
 
+        # UNLEARNING HAPPENS HERE
         state = unlearn(
             network,
             metanetwork,
@@ -180,23 +244,28 @@ def main():
             l2_penalty=args.l2_penalty,
             loss_fn=loss_fn,
             stopping_criterium=stopping_criterium,
+            device=device,
         )
+
         edited_network = state.weights.squeeze(0).detach()
         # baselines
         rv_weights = random_vector(network, edited_network)
-        fa_weights = finetune_ascent(network, config, ft_data_tr, forget_class=args.target_class, steps=state.step, verbose=False)
-        fr_weights = finetune_retain(network, config, ft_data_tr, forget_class=args.target_class, steps=state.step, verbose=False)
+        fa_weights = finetune_ascent(network, config, forget_data, steps=state.step, verbose=False)
+        fr_weights = finetune_retain(network, config, retain_data, steps=state.step, verbose=False)
 
-        acc_after_edit, per_class_acc_after_edit = evaluate_network(
-            edited_network.numpy(), config["config.activation"], x_test, y_test
+        # Batch evaluate all weight sets with single model build/compile
+        eval_results = evaluate_networks_batch(
+            [edited_network.numpy(), rv_weights, fa_weights, fr_weights], config["config.activation"], x_test, y_test
         )
-        acc_after_rv, per_class_acc_after_rv = evaluate_network(rv_weights, config["config.activation"], x_test, y_test)
-        acc_after_fa, per_class_acc_after_fa = evaluate_network(fa_weights, config["config.activation"], x_test, y_test)
-        acc_after_fr, per_class_acc_after_fr = evaluate_network(fr_weights, config["config.activation"], x_test, y_test)
+        (acc_after_edit, per_class_acc_after_edit) = eval_results[0]
+        (acc_after_rv, per_class_acc_after_rv) = eval_results[1]
+        (acc_after_fa, per_class_acc_after_fa) = eval_results[2]
+        (acc_after_fr, per_class_acc_after_fr) = eval_results[3]
 
         # js_similarity_edit_rv = js_similarity_score(edited_network.numpy(), rv_weights, config["config.activation"], x_test)
         # js_similarity_edit_fa = js_similarity_score(edited_network.numpy(), fa_weights, config["config.activation"], x_test)
         # js_similarity_edit_fr = js_similarity_score(edited_network.numpy(), fr_weights, config["config.activation"], x_test)
+
         row = pd.DataFrame(
             [
                 {
@@ -236,9 +305,6 @@ def main():
         )
         # this is nice because even if the csv already exists, we can append new models to it
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
-
-        # Clear TensorFlow graph to prevent memory leak from accumulated Keras models
-        keras.backend.clear_session()
 
 
 if __name__ == "__main__":
