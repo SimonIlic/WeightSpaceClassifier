@@ -115,7 +115,7 @@ def parse_args():
     parser.add_argument("--stopping-criterium", choices=["acc_pred", "acc_pred_relative", "cosine_similarity", "cosine_similarity_diff", "step"], default="acc_pred", help="Stopping criterium to terminate unlearning.",)  # fmt: skip
     parser.add_argument("--meta-network-path", type=str, help="Path to the meta-network file.")  # fmt: skip
     parser.add_argument("--start-idx", type=int, default=0, help="Starting model index (for parallel evaluations).")  # fmt: skip
-    parser.add_argument("--weights-set", type=str, default="val", choices=["train", "val"], help="Which set of weights to use for unlearning (train or val).")  # fmt: skip
+    parser.add_argument("--weights-set", type=str, default="val", choices=["train", "val", "test"], help="Which set of weights to use for unlearning (train or val).")  # fmt: skip
     return parser.parse_args()
 
 
@@ -141,9 +141,16 @@ def main():
 
     # test set for CNN evaluation after unlearning (image data, labels)
     x_test, y_test = load_testset_data(args.dataset)
+
     # models to unlearn (CNN weights, per-class accuracies, config)
-    train_data, _, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
-    weights_val, metrics_val, config_val = train_data if args.weights_set == "train" else val_data
+    train_data, test_data, val_data = load_dataset(dataset=args.dataset, metrics_file=metrics_file, load_class_acc=True)
+    if args.weights_set == "train":
+        weights_val, metrics_val, config_val = train_data
+    elif args.weights_set == "val":
+        weights_val, metrics_val, config_val = val_data
+    elif args.weights_set == "test":
+        weights_val, metrics_val, config_val = test_data
+
     accuracies_val = metrics_val[:, -10:]
     overall_accuracies_val = metrics_val[:, 0]  # test_accuracy column
     n_models = args.n_models if args.n_models is not None else len(weights_val) - args.start_idx
