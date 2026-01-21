@@ -299,12 +299,6 @@ def main():
         # this is nice because even if the csv already exists, we can append new models to it
         row.to_csv(args.output_file, mode="a", header=not os.path.exists(args.output_file), index=False)
 
-        # CLEAN UP
-        del state
-        gc.collect()
-        if model_idx % 10 == 0:
-            keras.backend.clear_session()
-
 
 if __name__ == "__main__":
     main()
