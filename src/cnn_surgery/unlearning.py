@@ -174,7 +174,7 @@ def unlearn(
         with th.no_grad():
             weights -= lr * weights.grad  # type: ignore
             distance_travelled += th.norm(lr * weights.grad).item()  # type: ignore
-        weights.grad.zero_()
+        weights.grad.zero_()  # type: ignore
         meta_network.zero_grad()
 
     # Move final results back to CPU for numpy compatibility
