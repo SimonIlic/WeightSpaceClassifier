@@ -44,7 +44,7 @@ def l2_regularisation(weights):
     """ L2 regularization on model weights."""
     return th.sum(weights ** 2)
 
-def acc_pred_stop_factory(threshold=0.1, relative=False):
+def acc_pred_stop_factory(threshold=0.1, relative=False, improve=False):
     """Return a stopping function that checks predicted accuracy for target class below threshold."""
     if relative:
         def acc_pred_stop(state: UnlearnState):
@@ -52,6 +52,10 @@ def acc_pred_stop_factory(threshold=0.1, relative=False):
     else:
         def acc_pred_stop(state: UnlearnState):
             return state.pred[state.target_class] < threshold
+        
+    if improve:
+        return lambda state: not acc_pred_stop(state)
+    
     return acc_pred_stop
 
 # backward-compatible default
