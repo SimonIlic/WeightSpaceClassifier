@@ -2,7 +2,7 @@ dataset='fashion_mnist'
 group_size=500
 for cls in 0 1 2 3 4 5 6 7 8 9; do 
     for idx in $(seq 0 $group_size 7500); do
-        echo "Evaluating class $cls, until index $idx"
+        echo "Evaluating class $cls, until index $((idx + group_size))"
         python src/cnn_surgery/evaluate_models.py \
             -c=$cls \
             -d=$dataset \
