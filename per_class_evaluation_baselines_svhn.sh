@@ -3,7 +3,7 @@ group_size=500
 
 # resume the rest of class 1
 cls=1
-for idx in $(seq 2500 $group_size 7500); do
+for idx in $(seq 3000 $group_size 7500); do
     echo "Evaluating class $cls, until index $((idx + group_size))"
     python src/cnn_surgery/evaluate_models.py \
         -c=$cls \
