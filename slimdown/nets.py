@@ -174,13 +174,27 @@ class FCN(nn.Module):
         return x
 
 
-def load_meta_network(path: str, device: str = "cpu") -> FCN:
-    """Load a meta-network saved by slimdown/convert_metanetworks.py.
+def load_meta_network(path: str, device: str = "cpu") -> nn.Module:
+    """Load a meta-network mapping (B, 4970) -> (B, n_classes).
 
-    The .pt file holds {"state_dict": ..., "arch": {...}}. Meta-network
-    parameters are frozen (requires_grad=False): unlearning only needs
-    gradients w.r.t. the input weights.
+    Two formats are accepted:
+      - ``.pt``: written by slimdown/convert_metanetworks.py, holding
+        {"state_dict": ..., "arch": {...}}.
+      - ``.pkl``: a whole pickled nn.Module (e.g. the SANE wrapper). Loading
+        one requires its defining package to be importable, so run with the
+        appropriate env/PYTHONPATH.
+
+    In both cases the meta-network is put in eval mode and its parameters are
+    frozen (requires_grad=False): unlearning only needs gradients w.r.t. the
+    input weights.
     """
+    if str(path).endswith(".pkl"):
+        import pickle
+
+        with open(path, "rb") as f:
+            model = pickle.load(f)
+        return _freeze_for_unlearning(model, device)
+
     payload = torch.load(path, map_location=device, weights_only=True)
     if not (isinstance(payload, dict) and "state_dict" in payload and "arch" in payload):
         raise ValueError(
@@ -198,6 +212,11 @@ def load_meta_network(path: str, device: str = "cpu") -> FCN:
         last_activation=arch.get("last_activation", "sigmoid"),
     )
     model.load_state_dict(payload["state_dict"])
+    return _freeze_for_unlearning(model, device)
+
+
+def _freeze_for_unlearning(model: nn.Module, device: str) -> nn.Module:
+    """Put a meta-network on `device` in eval mode with frozen parameters."""
     model.to(device)
     model.eval()
     for p in model.parameters():
