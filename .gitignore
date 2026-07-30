@@ -174,3 +174,4 @@ cython_debug/
 .vscode/
 
 *.pptx
+CLAUDE.md
